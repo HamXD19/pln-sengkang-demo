@@ -5,6 +5,11 @@ ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
 
+// Set VERCEL environment variable flag
+putenv('VERCEL=1');
+$_ENV['VERCEL'] = '1';
+$_SERVER['VERCEL'] = '1';
+
 // Prepare temporary writable directories in /tmp
 $tmpDirs = [
     '/tmp/storage/framework/views',
@@ -29,35 +34,12 @@ if (!file_exists($sqliteDest) && file_exists($sqliteSource)) {
 }
 
 // Copy cached manifest if available
-if (file_exists(__DIR__ . '/../bootstrap/cache/packages.php')) {
+if (file_exists(__DIR__ . '/../bootstrap/cache/packages.php') && !file_exists('/tmp/bootstrap/cache/packages.php')) {
     @copy(__DIR__ . '/../bootstrap/cache/packages.php', '/tmp/bootstrap/cache/packages.php');
 }
-if (file_exists(__DIR__ . '/../bootstrap/cache/services.php')) {
+if (file_exists(__DIR__ . '/../bootstrap/cache/services.php') && !file_exists('/tmp/bootstrap/cache/services.php')) {
     @copy(__DIR__ . '/../bootstrap/cache/services.php', '/tmp/bootstrap/cache/services.php');
 }
 
-define('LARAVEL_START', microtime(true));
-
-require __DIR__ . '/../vendor/autoload.php';
-
-try {
-    /** @var \Illuminate\Foundation\Application $app */
-    $app = require_once __DIR__ . '/../bootstrap/app.php';
-
-    $app->useStoragePath('/tmp/storage');
-    $app->useBootstrapPath('/tmp/bootstrap');
-
-    $request = \Illuminate\Http\Request::capture();
-    $app->handleRequest($request);
-} catch (\Throwable $e) {
-    http_response_code(500);
-    echo "<!DOCTYPE html><html><head><title>Deployment Error</title>";
-    echo "<style>body{font-family:sans-serif;padding:30px;background:#f8fafc;color:#1e293b;}pre{background:#1e293b;color:#f8fafc;padding:15px;border-radius:8px;overflow-x:auto;}</style></head><body>";
-    echo "<h1>🚨 Serverless Execution Error</h1>";
-    echo "<p><strong>Message:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
-    echo "<p><strong>Location:</strong> " . htmlspecialchars($e->getFile()) . " (Line " . $e->getLine() . ")</p>";
-    echo "<h3>Stack Trace:</h3>";
-    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-    echo "</body></html>";
-    exit(1);
-}
+// Forward to public/index.php
+require __DIR__ . '/../public/index.php';
