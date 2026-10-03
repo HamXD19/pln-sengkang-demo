@@ -19,43 +19,19 @@ class MeetingController extends Controller
         $userRole = strtoupper(optional($user->role)->name ?? 'STAFF');
 
         $tab = $request->get('tab', 'jadwal');
-        $query = Meeting::with('leader')->latest('meeting_date');
+        $query = Meeting::with(['leader', 'issues'])->latest('meeting_date')->latest('id');
 
         if ($tab === 'riwayat') {
             $query->where('status', 'Selesai');
         } else {
-            $query->where('status', '!=', 'Selesai');
+            $query->where(function($q) {
+                $q->where('status', '!=', 'Selesai')
+                  ->orWhereNull('status');
+            });
         }
 
         if ($request->filled('type') && $request->type !== 'semua') {
             $query->where('type', 'like', '%' . $request->type . '%');
-        }
-
-        // Scoping visibilitas rapat berdasarkan role & hierarki
-        if ($userRole === 'STAFF') {
-            $authorizedUnitIds = $user->getAuthorizedUnitIds();
-            $query->where(function($q) use ($user, $authorizedUnitIds) {
-                $q->where('leader_id', $user->id)
-                  ->orWhereHas('leader', fn($lq) => $lq->whereIn('unit_id', $authorizedUnitIds))
-                  ->orWhere('type', 'like', '%Staf%');
-            });
-        } elseif ($userRole === 'TL') {
-            $authorizedUnitIds = $user->getAuthorizedUnitIds();
-            $query->where(function($q) use ($user, $authorizedUnitIds) {
-                $q->where('leader_id', $user->id)
-                  ->orWhereHas('leader', fn($lq) => $lq->whereIn('unit_id', $authorizedUnitIds))
-                  ->orWhere('type', 'like', '%TL%')
-                  ->orWhere('type', 'like', '%Staf%');
-            });
-        } elseif ($userRole === 'ASMAN') {
-            $authorizedUnitIds = $user->getAuthorizedUnitIds();
-            $query->where(function($q) use ($user, $authorizedUnitIds) {
-                $q->where('leader_id', $user->id)
-                  ->orWhereHas('leader', fn($lq) => $lq->whereIn('unit_id', $authorizedUnitIds))
-                  ->orWhere('type', 'like', '%Asman%')
-                  ->orWhere('type', 'like', '%Manajemen%')
-                  ->orWhere('type', 'like', '%RTM%');
-            });
         }
 
         $meetings = $query->get();

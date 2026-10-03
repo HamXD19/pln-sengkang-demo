@@ -160,6 +160,12 @@
         </div>
 
         <form @submit.prevent="submitCreate" class="space-y-4">
+          <div v-if="Object.keys(createForm.errors).length > 0" class="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
+            <p class="font-bold flex items-center gap-1.5"><i class="fas fa-exclamation-triangle"></i> Gagal menyimpan agenda rapat:</p>
+            <ul class="list-disc pl-5 mt-1 space-y-0.5">
+              <li v-for="(err, key) in createForm.errors" :key="key">{{ err }}</li>
+            </ul>
+          </div>
           <!-- 1. Tipe Rapat -->
           <div>
             <label class="block text-xs font-bold text-gray-700 mb-1">
