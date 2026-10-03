@@ -67,29 +67,34 @@ class MasterDataController extends Controller
         $queryParams = $request->query();
         $queryParams['tab'] = 'users';
         $users = $query->paginate(15)->appends($queryParams);
+        $users->getCollection()->each->append('hierarchy_info');
 
         $roles = Role::all();
         $positions = Position::orderBy('name')->get();
         $units = OrganizationUnit::all();
         $hierarchies = OrganizationHierarchy::orderBy('sort_order')->get();
 
-        // Kumpulan semua data user lengkap untuk pemetaan foto di Struktur Organisasi (Organogram) & Relasi Incumbent
+        // Kumpulan data user ringkas untuk pemetaan foto di Struktur Organisasi (Organogram) & Relasi Incumbent
         $organogramUsers = User::select('id', 'name', 'employee_no', 'avatar', 'role_id', 'position_id')
             ->whereNotNull('employee_no')
             ->get()
+            ->makeHidden(['avatar_url'])
             ->keyBy(fn($u) => trim($u->employee_no));
 
         $usersByName = User::select('id', 'name', 'employee_no', 'avatar', 'role_id', 'position_id')
             ->get()
+            ->makeHidden(['avatar_url'])
             ->keyBy(fn($u) => strtoupper(trim($u->name)));
 
         // Daftar seluruh Team Leader dan Asisten Manajer untuk dropdown penugasan hierarki
-        $tls = User::with(['position', 'organizationUnit'])
+        $tls = User::select('id', 'name', 'employee_no', 'position_id', 'unit_id', 'role_id')
+            ->with(['position:id,name', 'organizationUnit:id,name'])
             ->whereHas('role', fn($q) => $q->where('name', 'TL'))
             ->orderBy('name')
             ->get();
 
-        $asmans = User::with(['position', 'organizationUnit'])
+        $asmans = User::select('id', 'name', 'employee_no', 'position_id', 'unit_id', 'role_id')
+            ->with(['position:id,name', 'organizationUnit:id,name'])
             ->whereHas('role', fn($q) => $q->where('name', 'ASMAN'))
             ->orderBy('name')
             ->get();

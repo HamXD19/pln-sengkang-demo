@@ -88,15 +88,12 @@ class TaskController extends Controller
             $usersQuery = User::whereIn('id', $subordinateIds)->where('is_active', true);
         }
 
-        $users = (clone $usersQuery)->orderBy('name')->get();
+        $users = (clone $usersQuery)->select('id', 'name', 'employee_no')->orderBy('name')->get()->makeHidden(['avatar_url']);
         if ($users->isEmpty()) {
-            $users = User::where('id', $user->id)->get();
+            $users = User::where('id', $user->id)->select('id', 'name', 'employee_no')->get()->makeHidden(['avatar_url']);
         }
 
-        $staffUsers = (clone $usersQuery)->whereHas('role', fn($q) => $q->where('name', 'STAFF'))->orderBy('name')->get();
-        if ($staffUsers->isEmpty()) {
-            $staffUsers = $users;
-        }
+        $staffUsers = [];
 
         // Data Isu Aktif terfilter sesuai unit otoritas & jenjang eskalasi
         $authorizedUnitIds = $user->getAuthorizedUnitIds();

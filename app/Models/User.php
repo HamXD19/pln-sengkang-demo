@@ -16,7 +16,6 @@ class User extends Authenticatable
 
     protected $appends = [
         'avatar_url',
-        'hierarchy_info',
     ];
 
     protected $hidden = [
@@ -118,29 +117,39 @@ class User extends Authenticatable
      * - ASMAN: Unit bidangnya beserta seluruh sub-unit/seksi (child units) di bawahnya
      * - TL & STAFF: Unit seksinya sendiri
      */
+    protected ?array $memoizedAuthorizedUnitIds = null;
+    protected ?array $memoizedSubordinateUserIds = null;
+
+    /**
+     * Dapatkan unit ID yang berwenang diakses berdasarkan peran dan posisi dalam struktur organisasi.
+     */
     public function getAuthorizedUnitIds(): array
     {
+        if ($this->memoizedAuthorizedUnitIds !== null) {
+            return $this->memoizedAuthorizedUnitIds;
+        }
+
         $roleName = strtoupper($this->role->name ?? '');
 
         if ($roleName === 'MUP' || $roleName === 'ADMIN') {
-            return OrganizationUnit::pluck('id')->toArray();
+            return $this->memoizedAuthorizedUnitIds = OrganizationUnit::pluck('id')->toArray();
         }
 
         if ($roleName === 'ASMAN') {
             $myUnitId = $this->unit_id;
             if (!$myUnitId) {
-                return [];
+                return $this->memoizedAuthorizedUnitIds = [];
             }
 
             // Ambil unit bidang ini dan seluruh unit anak (seksi-seksi) di bawahnya
-            return OrganizationUnit::where('parent_unit_id', $myUnitId)
+            return $this->memoizedAuthorizedUnitIds = OrganizationUnit::where('parent_unit_id', $myUnitId)
                 ->orWhere('id', $myUnitId)
                 ->pluck('id')
                 ->toArray();
         }
 
         // Untuk TL dan STAFF: hanya unit seksinya sendiri
-        return $this->unit_id ? [$this->unit_id] : [];
+        return $this->memoizedAuthorizedUnitIds = ($this->unit_id ? [$this->unit_id] : []);
     }
 
     /**
@@ -148,18 +157,22 @@ class User extends Authenticatable
      */
     public function getSubordinateUserIds(): array
     {
+        if ($this->memoizedSubordinateUserIds !== null) {
+            return $this->memoizedSubordinateUserIds;
+        }
+
         $roleName = strtoupper($this->role->name ?? '');
 
         if ($roleName === 'MUP' || $roleName === 'ADMIN') {
-            return self::pluck('id')->toArray();
+            return $this->memoizedSubordinateUserIds = self::pluck('id')->toArray();
         }
 
         $unitIds = $this->getAuthorizedUnitIds();
         if (empty($unitIds)) {
-            return [$this->id];
+            return $this->memoizedSubordinateUserIds = [$this->id];
         }
 
-        return self::whereIn('unit_id', $unitIds)->pluck('id')->toArray();
+        return $this->memoizedSubordinateUserIds = self::whereIn('unit_id', $unitIds)->pluck('id')->toArray();
     }
 
     /**

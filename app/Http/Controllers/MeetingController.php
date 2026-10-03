@@ -79,13 +79,13 @@ class MeetingController extends Controller
         }
 
         $subordinateIds = $user->getSubordinateUserIds();
-        if (in_array($userRole, ['MUP', 'ADMIN'])) {
-            $leaders = User::where('is_active', true)->orderBy('name')->get();
-        } else {
-            $leaders = User::whereIn('id', array_merge([$user->id], $subordinateIds))->where('is_active', true)->orderBy('name')->get();
-            if ($leaders->isEmpty()) {
-                $leaders = User::where('id', $user->id)->get();
-            }
+        $leadersQuery = in_array($userRole, ['MUP', 'ADMIN'])
+            ? User::where('is_active', true)
+            : User::whereIn('id', array_merge([$user->id], $subordinateIds))->where('is_active', true);
+
+        $leaders = $leadersQuery->select('id', 'name', 'role_id')->with('role:id,name')->orderBy('name')->get()->makeHidden(['avatar_url']);
+        if ($leaders->isEmpty()) {
+            $leaders = User::where('id', $user->id)->select('id', 'name', 'role_id')->with('role:id,name')->get()->makeHidden(['avatar_url']);
         }
 
         $authorizedUnitIds = $user->getAuthorizedUnitIds();
@@ -301,13 +301,13 @@ class MeetingController extends Controller
 
         // Opsi pengguna bawahan yang dapat ditugaskan task dalam rapat
         $subordinateIds = $leader ? $leader->getSubordinateUserIds() : [];
-        if ($meetingLevel === 'MUP') {
-            $users = User::where('is_active', true)->orderBy('name')->get();
-        } else {
-            $users = User::whereIn('id', $subordinateIds)->where('is_active', true)->orderBy('name')->get();
-            if ($users->isEmpty() && $leader) {
-                $users = User::where('id', $leader->id)->get();
-            }
+        $usersQuery = ($meetingLevel === 'MUP')
+            ? User::where('is_active', true)
+            : User::whereIn('id', $subordinateIds)->where('is_active', true);
+
+        $users = $usersQuery->select('id', 'name', 'employee_no')->orderBy('name')->get()->makeHidden(['avatar_url']);
+        if ($users->isEmpty() && $leader) {
+            $users = User::where('id', $leader->id)->select('id', 'name', 'employee_no')->get()->makeHidden(['avatar_url']);
         }
 
         return Inertia::render('Meetings/Workspace', [
