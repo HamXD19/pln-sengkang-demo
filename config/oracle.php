@@ -20,6 +20,7 @@ return [
         'dynamic' => [],
         'options' => [
             \PDO::ATTR_CASE => \PDO::CASE_LOWER,
+            \PDO::ATTR_PERSISTENT => true,
         ],
         'sessionVars' => [
             'NLS_TIME_FORMAT' => 'HH24:MI:SS',

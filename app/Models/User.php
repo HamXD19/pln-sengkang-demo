@@ -167,19 +167,48 @@ class User extends Authenticatable
      */
     public function getHierarchyInfoAttribute(): array
     {
-        $roleName = strtoupper($this->role->name ?? 'STAFF');
+        static $cachedMup = null;
+        static $cachedTlsByUnit = [];
+        static $cachedAsmansByUnit = [];
+        static $cachedUsersById = [];
+        static $allRoles = null;
+        static $allPositions = null;
+        static $allUnits = null;
+        static $allUnitParents = null;
+
+        if ($allRoles === null) {
+            $allRoles = Role::pluck('name', 'id')->toArray();
+        }
+        if ($allPositions === null) {
+            $allPositions = Position::pluck('name', 'id')->toArray();
+        }
+        if ($allUnits === null) {
+            $allUnits = OrganizationUnit::pluck('name', 'id')->toArray();
+            $allUnitParents = OrganizationUnit::pluck('parent_unit_id', 'id')->toArray();
+        }
+
+        $roleName = strtoupper($this->relationLoaded('role') ? ($this->role->name ?? 'STAFF') : (($this->role_id && isset($allRoles[$this->role_id])) ? $allRoles[$this->role_id] : 'STAFF'));
+        $positionName = $this->relationLoaded('position') ? ($this->position?->name) : (($this->position_id && isset($allPositions[$this->position_id])) ? $allPositions[$this->position_id] : null);
+        $positionName = $positionName ?? ($roleName === 'STAFF' ? 'Staff' : $roleName);
+        $unitName = $this->relationLoaded('organizationUnit') ? ($this->organizationUnit?->name) : (($this->unit_id && isset($allUnits[$this->unit_id])) ? $allUnits[$this->unit_id] : '-');
 
         // 1. Cari TL
         $tl = null;
         if ($roleName === 'TL') {
             $tl = $this;
         } elseif ($this->tl_id) {
-            $tl = $this->teamLeader ?? self::with(['position', 'organizationUnit'])->find($this->tl_id);
-        } else {
-            $tl = self::with(['position', 'organizationUnit'])
-                ->where('unit_id', $this->unit_id)
-                ->whereHas('role', fn($q) => $q->where('name', 'TL'))
-                ->first();
+            if (!isset($cachedUsersById[$this->tl_id])) {
+                $cachedUsersById[$this->tl_id] = $this->teamLeader ?? self::with(['position', 'organizationUnit'])->find($this->tl_id);
+            }
+            $tl = $cachedUsersById[$this->tl_id];
+        } elseif ($this->unit_id) {
+            if (!array_key_exists($this->unit_id, $cachedTlsByUnit)) {
+                $cachedTlsByUnit[$this->unit_id] = self::with(['position', 'organizationUnit'])
+                    ->where('unit_id', $this->unit_id)
+                    ->whereHas('role', fn($q) => $q->where('name', 'TL'))
+                    ->first();
+            }
+            $tl = $cachedTlsByUnit[$this->unit_id];
         }
 
         // 2. Cari ASMAN
@@ -187,28 +216,37 @@ class User extends Authenticatable
         if ($roleName === 'ASMAN') {
             $asman = $this;
         } elseif ($this->asman_id) {
-            $asman = $this->asistenManajer ?? self::with(['position', 'organizationUnit'])->find($this->asman_id);
+            if (!isset($cachedUsersById[$this->asman_id])) {
+                $cachedUsersById[$this->asman_id] = $this->asistenManajer ?? self::with(['position', 'organizationUnit'])->find($this->asman_id);
+            }
+            $asman = $cachedUsersById[$this->asman_id];
         } else {
-            $unit = $this->organizationUnit;
-            if ($unit && $unit->parent_unit_id) {
-                $asman = self::with(['position', 'organizationUnit'])
-                    ->where('unit_id', $unit->parent_unit_id)
-                    ->whereHas('role', fn($q) => $q->where('name', 'ASMAN'))
-                    ->first();
+            $parentUnitId = $this->relationLoaded('organizationUnit') ? ($this->organizationUnit?->parent_unit_id) : (($this->unit_id && isset($allUnitParents[$this->unit_id])) ? $allUnitParents[$this->unit_id] : null);
+            if ($parentUnitId) {
+                if (!array_key_exists($parentUnitId, $cachedAsmansByUnit)) {
+                    $cachedAsmansByUnit[$parentUnitId] = self::with(['position', 'organizationUnit'])
+                        ->where('unit_id', $parentUnitId)
+                        ->whereHas('role', fn($q) => $q->where('name', 'ASMAN'))
+                        ->first();
+                }
+                $asman = $cachedAsmansByUnit[$parentUnitId];
             }
         }
 
-        // 3. Cari MUP
-        $mup = self::with(['position', 'organizationUnit'])
-            ->whereHas('role', fn($q) => $q->where('name', 'MUP'))
-            ->first();
+        // 3. Cari MUP (Hanya query 1x per request lifecycle)
+        if ($cachedMup === null) {
+            $cachedMup = self::with(['position', 'organizationUnit'])
+                ->whereHas('role', fn($q) => $q->where('name', 'MUP'))
+                ->first();
+        }
+        $mup = $cachedMup;
 
         return [
             'staff' => [
                 'id' => $this->id,
                 'name' => $this->name,
-                'position' => $this->position?->name ?? ($this->role?->name ?? 'Staff'),
-                'unit' => $this->organizationUnit?->name ?? '-',
+                'position' => $positionName,
+                'unit' => $unitName,
                 'avatar' => $this->avatar_url,
             ],
             'tl' => $tl ? [
