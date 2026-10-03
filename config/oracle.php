@@ -1,0 +1,32 @@
+<?php
+
+return [
+    'oracle' => [
+        'driver' => 'oracle',
+        'tns' => env('DB_TNS', ''),
+        'host' => env('DB_HOST', '127.0.0.1'),
+        'port' => env('DB_PORT', '1521'),
+        'database' => env('DB_DATABASE', ''),
+        'service_name' => env('DB_SERVICE_NAME', 'FREEPDB1'),
+        'username' => env('DB_USERNAME', 'irham'),
+        'password' => env('DB_PASSWORD', 'Irham123'),
+        'charset' => env('DB_CHARSET', 'AL32UTF8'),
+        'prefix' => env('DB_PREFIX', ''),
+        'prefix_schema' => env('DB_SCHEMA_PREFIX', ''),
+        'edition' => env('DB_EDITION', 'ora$base'),
+        'server_version' => env('DB_SERVER_VERSION', '23c'),
+        'load_balance' => env('DB_LOAD_BALANCE', 'yes'),
+        'max_name_len' => env('ORA_MAX_NAME_LEN', 128),
+        'dynamic' => [],
+        'options' => [
+            \PDO::ATTR_CASE => \PDO::CASE_LOWER,
+        ],
+        'sessionVars' => [
+            'NLS_TIME_FORMAT' => 'HH24:MI:SS',
+            'NLS_DATE_FORMAT' => 'YYYY-MM-DD HH24:MI:SS',
+            'NLS_TIMESTAMP_FORMAT' => 'YYYY-MM-DD HH24:MI:SS',
+            'NLS_TIMESTAMP_TZ_FORMAT' => 'YYYY-MM-DD HH24:MI:SS TZH:TZM',
+            'NLS_NUMERIC_CHARACTERS' => '.,',
+        ],
+    ],
+];
