@@ -852,6 +852,9 @@
 import { ref } from 'vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const { confirm } = useConfirm();
 
 const props = defineProps({
   users: Object,
@@ -940,8 +943,16 @@ function submitAddHierarchy() {
   });
 }
 
-function deleteHierarchy(id) {
-  if (confirm('Hapus relasi hirarki ini?')) {
+async function deleteHierarchy(id) {
+  const confirmed = await confirm({
+    title: 'Hapus Relasi Hirarki',
+    message: 'Apakah Anda yakin ingin menghapus relasi hirarki organisasi ini? Perubahan akan mempengaruhi alur pelaporan.',
+    confirmText: 'Ya, Hapus Relasi',
+    cancelText: 'Batal',
+    type: 'danger',
+    icon: 'fas fa-sitemap',
+  });
+  if (confirmed) {
     router.delete(`/master-data/hierarchies/${id}`, { preserveScroll: true });
   }
 }
@@ -975,8 +986,16 @@ function submitAddUser() {
   });
 }
 
-function deleteUser(id) {
-  if (confirm('Hapus data pengguna ini?')) {
+async function deleteUser(id) {
+  const confirmed = await confirm({
+    title: 'Hapus Pengguna',
+    message: 'Apakah Anda yakin ingin menghapus data akun pengguna ini? Tindakan ini tidak dapat dibatalkan.',
+    confirmText: 'Ya, Hapus Pengguna',
+    cancelText: 'Batal',
+    type: 'danger',
+    icon: 'fas fa-trash-can',
+  });
+  if (confirmed) {
     router.delete(`/master-data/users/${id}`, { preserveScroll: true });
   }
 }

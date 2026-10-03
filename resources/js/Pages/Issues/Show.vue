@@ -931,6 +931,9 @@
 import { ref, computed } from 'vue';
 import { router, Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const { confirm } = useConfirm();
 
 const props = defineProps({
   issue: Object,
@@ -984,8 +987,16 @@ function submitEdit() {
   });
 }
 
-function confirmDelete() {
-  if (confirm(`Apakah Anda yakin ingin menghapus issue #${props.issue.issue_no} "${props.issue.title}"? Seluruh riwayat eskalasi dan keputusan terkait akan ikut dihapus.`)) {
+async function confirmDelete() {
+  const confirmed = await confirm({
+    title: 'Hapus Isu',
+    message: `Apakah Anda yakin ingin menghapus issue #${props.issue.issue_no} "${props.issue.title}"? Seluruh riwayat eskalasi, diskusi, dan keputusan terkait akan ikut dihapus permanen.`,
+    confirmText: 'Ya, Hapus Isu',
+    cancelText: 'Batal',
+    type: 'danger',
+    icon: 'fas fa-trash-can',
+  });
+  if (confirmed) {
     router.delete(`/issues/${props.issue.id}`);
   }
 }

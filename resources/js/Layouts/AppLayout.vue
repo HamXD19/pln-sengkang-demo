@@ -153,24 +153,6 @@
         </div>
       </header>
 
-      <!-- Flash Message Toast Banner -->
-      <transition enter-active-class="transform ease-out duration-300 transition" enter-from-class="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2" enter-to-class="translate-y-0 opacity-100 sm:translate-x-0" leave-active-class="transition ease-in duration-200" leave-from-class="opacity-100" leave-to-class="opacity-0">
-        <div 
-          v-if="flashMessage" 
-          class="absolute top-4 right-4 z-50 max-w-md w-full shadow-lg rounded-xl overflow-hidden border p-4 flex items-start gap-3 backdrop-blur-md"
-          :class="flashClasses"
-        >
-          <i :class="flashIconClass" class="text-base mt-0.5"></i>
-          <div class="flex-1 text-xs">
-            <p class="font-bold mb-0.5">{{ flashTitle }}</p>
-            <p class="text-slate-700 leading-relaxed">{{ flashMessage }}</p>
-          </div>
-          <button @click="dismissFlash" class="text-slate-400 hover:text-slate-600 p-1">
-            <i class="fas fa-times text-xs"></i>
-          </button>
-        </div>
-      </transition>
-
       <!-- Scrollable Main View -->
       <main class="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
         <div class="max-w-[1240px] mx-auto space-y-6">
@@ -224,8 +206,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const props = defineProps({
   title: {
@@ -236,52 +219,14 @@ const props = defineProps({
 
 const page = usePage();
 const mobileSidebarOpen = ref(false);
+const { confirm } = useConfirm();
 
 const user = computed(() => page.props.auth?.user);
-const flash = computed(() => page.props.flash || {});
-
-const flashDismissed = ref(false);
-
-const flashMessage = computed(() => {
-  if (flashDismissed.value) return null;
-  return flash.value.success || flash.value.error || flash.value.info || null;
-});
 
 const isMupOrAdmin = computed(() => {
   const role = (user.value?.role?.name || '').toUpperCase();
   return ['MUP', 'ADMIN'].includes(role);
 });
-
-const flashTitle = computed(() => {
-  if (flash.value.error) return 'Terjadi Kesalahan';
-  if (flash.value.info) return 'Informasi';
-  return 'Berhasil';
-});
-
-const flashClasses = computed(() => {
-  if (flash.value.error) return 'bg-rose-50/95 border-rose-200 text-rose-800';
-  if (flash.value.info) return 'bg-sky-50/95 border-sky-200 text-sky-800';
-  return 'bg-emerald-50/95 border-emerald-200 text-emerald-800';
-});
-
-const flashIconClass = computed(() => {
-  if (flash.value.error) return 'fas fa-exclamation-triangle text-rose-600';
-  if (flash.value.info) return 'fas fa-info-circle text-sky-600';
-  return 'fas fa-check-circle text-emerald-600';
-});
-
-watch(() => [flash.value.success, flash.value.error, flash.value.info], () => {
-  flashDismissed.value = false;
-  if (flashMessage.value) {
-    setTimeout(() => {
-      flashDismissed.value = true;
-    }, 5000);
-  }
-});
-
-function dismissFlash() {
-  flashDismissed.value = true;
-}
 
 function navClass(pathOrPaths) {
   const currentUrl = page.url;
@@ -294,8 +239,16 @@ function navClass(pathOrPaths) {
   return 'flex items-center gap-3 px-4 py-2.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors';
 }
 
-function logout() {
-  if (confirm('Apakah Anda yakin ingin keluar dari sistem?')) {
+async function logout() {
+  const confirmed = await confirm({
+    title: 'Konfirmasi Keluar',
+    message: 'Apakah Anda yakin ingin keluar dari sistem Sistem Koordinasi PLN UP Sengkang?',
+    confirmText: 'Ya, Keluar',
+    cancelText: 'Batal',
+    type: 'warning',
+    icon: 'fas fa-arrow-right-from-bracket',
+  });
+  if (confirmed) {
     router.post('/logout');
   }
 }

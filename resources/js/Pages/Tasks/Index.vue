@@ -442,6 +442,9 @@
 import { ref, computed } from 'vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const { confirm } = useConfirm();
 
 const props = defineProps({
   tasks: Object,
@@ -573,8 +576,16 @@ function submitEdit() {
 }
 
 // ==================== DELETE ====================
-function deleteTask(task) {
-  if (confirm(`Apakah Anda yakin ingin menghapus task "${task.title}"?`)) {
+async function deleteTask(task) {
+  const confirmed = await confirm({
+    title: 'Hapus Pekerjaan',
+    message: `Apakah Anda yakin ingin menghapus task "${task.title}"? Riwayat progres dan bukti penanganan terkait akan dihapus permanen.`,
+    confirmText: 'Ya, Hapus Task',
+    cancelText: 'Batal',
+    type: 'danger',
+    icon: 'fas fa-trash-can',
+  });
+  if (confirmed) {
     router.delete(`/pekerjaan/${task.id}`);
   }
 }

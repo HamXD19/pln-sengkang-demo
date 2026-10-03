@@ -256,6 +256,9 @@
 import { ref } from 'vue';
 import { router, Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const { confirm } = useConfirm();
 
 const props = defineProps({
   informations: Object,
@@ -312,8 +315,16 @@ function submitCreate() {
   });
 }
 
-function deleteInfo(id) {
-  if (confirm('Hapus informasi ini?')) {
+async function deleteInfo(id) {
+  const confirmed = await confirm({
+    title: 'Hapus Informasi',
+    message: 'Apakah Anda yakin ingin menghapus arahan / informasi ini dari papan pengumuman?',
+    confirmText: 'Ya, Hapus Informasi',
+    cancelText: 'Batal',
+    type: 'danger',
+    icon: 'fas fa-trash-can',
+  });
+  if (confirmed) {
     router.delete(`/informasi/${id}`, { preserveScroll: true });
   }
 }
