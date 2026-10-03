@@ -27,14 +27,23 @@ if ($uri !== '/' && file_exists($publicPath . $uri)) {
         header('Content-Type: ' . $mime);
         header('Cache-Control: public, max-age=31536000, immutable');
 
-        // Gzip compression for text-based assets if accepted by client
+        // Serve pre-compressed Gzip asset directly if accepted by client
         $encodings = $_SERVER['HTTP_ACCEPT_ENCODING'] ?? '';
-        if (str_contains($encodings, 'gzip') && in_array($ext, ['js', 'css', 'svg'])) {
-            $content = file_get_contents($filePath);
-            header('Content-Encoding: gzip');
-            header('Vary: Accept-Encoding');
-            echo gzencode($content, 6);
-            exit;
+        if (str_contains($encodings, 'gzip')) {
+            $gzPath = $filePath . '.gz';
+            if (file_exists($gzPath)) {
+                header('Content-Encoding: gzip');
+                header('Vary: Accept-Encoding');
+                header('Content-Length: ' . filesize($gzPath));
+                readfile($gzPath);
+                exit;
+            } elseif (in_array($ext, ['js', 'css', 'svg'])) {
+                $content = file_get_contents($filePath);
+                header('Content-Encoding: gzip');
+                header('Vary: Accept-Encoding');
+                echo gzencode($content, 6);
+                exit;
+            }
         }
 
         header('Content-Length: ' . filesize($filePath));
