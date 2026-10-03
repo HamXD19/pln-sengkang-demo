@@ -23,21 +23,23 @@ return new class extends Migration
             });
         }
 
-        // Backfill unit_id pada issues dari pelapor
-        \DB::statement("
-            UPDATE issues i 
-            JOIN users u ON i.reported_by = u.id 
-            SET i.unit_id = u.unit_id 
-            WHERE i.unit_id IS NULL AND u.unit_id IS NOT NULL
-        ");
+        if (\DB::getDriverName() === 'mysql') {
+            // Backfill unit_id pada issues dari pelapor
+            \DB::statement("
+                UPDATE issues i 
+                JOIN users u ON i.reported_by = u.id 
+                SET i.unit_id = u.unit_id 
+                WHERE i.unit_id IS NULL AND u.unit_id IS NOT NULL
+            ");
 
-        // Backfill unit_id pada tasks dari PIC pelaksana
-        \DB::statement("
-            UPDATE tasks t 
-            JOIN users u ON t.assigned_to = u.id 
-            SET t.unit_id = u.unit_id 
-            WHERE t.unit_id IS NULL AND u.unit_id IS NOT NULL
-        ");
+            // Backfill unit_id pada tasks dari PIC pelaksana
+            \DB::statement("
+                UPDATE tasks t 
+                JOIN users u ON t.assigned_to = u.id 
+                SET t.unit_id = u.unit_id 
+                WHERE t.unit_id IS NULL AND u.unit_id IS NOT NULL
+            ");
+        }
     }
 
     /**

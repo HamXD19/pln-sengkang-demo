@@ -15,5 +15,12 @@ foreach ($tmpDirs as $dir) {
     }
 }
 
+// Copy pre-seeded SQLite database to writable /tmp if not already there
+$sqliteSource = __DIR__ . '/../database/database.sqlite';
+$sqliteDest = '/tmp/database.sqlite';
+if (!file_exists($sqliteDest) && file_exists($sqliteSource)) {
+    @copy($sqliteSource, $sqliteDest);
+}
+
 // Forward to public/index.php
 require __DIR__ . '/../public/index.php';
