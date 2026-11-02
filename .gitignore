@@ -21,3 +21,21 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Documentation & Internal Reports
+DAFTAR_AKUN_PEGAWAI_PLN_SENGKANG.md
+LAPORAN_STRUKTUR_DAN_HAK_AKSES_PLN_SENGKANG.md
+MANUAL_BOOK_PLN_SENGKANG.md
+reports/
+/reports/
+*.docx
+*.pdf
+
+# Temporary scripts & local excel duplicate
+generate_accounts_excel.cjs
+/DAFTAR_AKUN_PEGAWAI_PLN_SENGKANG.xlsx
+
+# User uploads & cache
+/public/uploads/*
+!/public/uploads/.gitkeep
+
