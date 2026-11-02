@@ -38,8 +38,8 @@
         </div>
       </div>
 
-      <!-- Tabel Keputusan -->
-      <div class="overflow-x-auto">
+      <!-- Desktop Table View: Tabel Keputusan -->
+      <div class="hidden md:block overflow-x-auto">
         <table class="w-full text-left text-xs whitespace-nowrap">
           <thead class="bg-[#f8fafc] border-b border-gray-100 text-gray-500 font-semibold">
             <tr>
@@ -93,6 +93,54 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Native Mobile App Card Feed View: Tabel Keputusan -->
+      <div class="md:hidden p-3 space-y-3 bg-slate-50/50">
+        <template v-if="decisions.data && decisions.data.length > 0">
+          <div 
+            v-for="dec in decisions.data" 
+            :key="dec.id" 
+            class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-2xs hover:shadow-xs transition active:scale-[0.99] space-y-3"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <span class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold">
+                Keputusan Level {{ dec.decision_level }}
+              </span>
+              <span class="text-[11px] font-mono text-slate-400">
+                {{ formatDate(dec.created_at) }}
+              </span>
+            </div>
+
+            <!-- Decision Quote Statement -->
+            <div class="bg-slate-50 border-l-2 border-indigo-500 p-3 rounded-r-lg text-xs font-semibold text-slate-800">
+              "{{ dec.decision }}"
+            </div>
+
+            <div v-if="dec.issue" class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+              <div class="min-w-0 pr-2">
+                <span class="text-slate-400 text-[10px] block font-bold uppercase">Terkait Isu</span>
+                <Link :href="`/issues/${dec.issue.id}`" class="font-bold text-blue-600 hover:underline block truncate text-xs">
+                  #{{ dec.issue.issue_no }} - {{ dec.issue.title }}
+                </Link>
+              </div>
+              <Link 
+                :href="`/issues/${dec.issue.id}`" 
+                class="bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white px-2.5 py-1 rounded-md text-[11px] font-bold border border-blue-200 shrink-0 transition"
+              >
+                Detail
+              </Link>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <span>Pembuat Keputusan:</span>
+              <b class="text-slate-700">{{ dec.decision_maker?.name || '-' }}</b>
+            </div>
+          </div>
+        </template>
+        <div v-else class="text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">
+          Tidak ada data keputusan yang ditemukan.
+        </div>
       </div>
 
       <!-- Paginasi -->

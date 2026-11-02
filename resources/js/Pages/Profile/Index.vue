@@ -287,9 +287,10 @@
               <button 
                 type="submit" 
                 :disabled="profileForm.processing"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
               >
-                <i class="fas fa-save"></i> 
+                <i v-if="profileForm.processing" class="fas fa-spinner fa-spin"></i>
+                <i v-else class="fas fa-save"></i> 
                 {{ profileForm.processing ? 'Menyimpan...' : 'Simpan Perubahan Profil' }}
               </button>
             </div>
@@ -347,9 +348,10 @@
               <button 
                 type="submit" 
                 :disabled="passwordForm.processing"
-                class="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 px-4 rounded-lg text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                class="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 px-4 rounded-lg text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
               >
-                <i class="fas fa-key"></i> 
+                <i v-if="passwordForm.processing" class="fas fa-spinner fa-spin"></i>
+                <i v-else class="fas fa-key"></i> 
                 {{ passwordForm.processing ? 'Menyimpan...' : 'Perbarui Kata Sandi' }}
               </button>
             </div>
@@ -384,6 +386,7 @@ function onAvatarChange(e) {
 }
 
 function submitProfile() {
+  if (profileForm.processing) return;
   profileForm.post('/profil', {
     preserveScroll: true,
     onSuccess: () => {
@@ -399,6 +402,7 @@ const passwordForm = useForm({
 });
 
 function submitPassword() {
+  if (passwordForm.processing) return;
   passwordForm.put('/profil/password', {
     preserveScroll: true,
     onSuccess: () => {

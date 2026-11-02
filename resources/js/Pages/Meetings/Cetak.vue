@@ -99,7 +99,7 @@
         </h3>
         <ol class="list-decimal pl-5 space-y-1 text-xs text-gray-700">
           <li>Penyampaian arahan kebijakan dan keselamatan ketenagalistrikan (K3L) pembangkit.</li>
-          <li>Evaluasi ketercapaian task dan mitigasi pekerjaan tertunda dari minggu sebelumnya (Siklus N-1).</li>
+          <li>Evaluasi ketercapaian task dan mitigasi task tertunda dari minggu sebelumnya (Siklus N-1).</li>
           <li>Identifikasi dan pembahasan eskalasi kendala operasional unit pembangkit.</li>
           <li>Perumusan penetapan keputusan resmi pimpinan berwenang (<em>Lowest Competent Level</em>).</li>
           <li>Penyusunan target task baru dan penugasan Person in Charge (PIC) minggu berjalan (Siklus N).</li>

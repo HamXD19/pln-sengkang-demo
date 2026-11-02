@@ -6,11 +6,16 @@
       <div class="bg-white rounded-xl border border-gray-100 shadow-xs p-6">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-gray-100">
           <div>
-            <h2 class="text-lg font-bold text-gray-800">Master Organisasi & Data Manajemen UP Sengkang</h2>
-            <p class="text-xs text-gray-500 mt-1">Struktur relasi hirarki Incumbent-Parent, data karyawan, dan organogram visual PLN NP UP Sengkang.</p>
+            <h2 class="text-lg font-bold text-gray-800">
+              {{ isSuperAdmin ? 'Portal Super Admin — Manajemen Akun & Tampilan Sistem' : 'Master Organisasi & Data Manajemen UP Sengkang' }}
+            </h2>
+            <p class="text-xs text-gray-500 mt-1">
+              {{ isSuperAdmin ? 'Kelola akun karyawan, hak akses jabatan, dan kustomisasi logo & foto background login sistem PLN NP UP Sengkang.' : 'Struktur relasi hirarki Incumbent-Parent, data karyawan, dan organogram visual PLN NP UP Sengkang.' }}
+            </p>
           </div>
           <div class="flex items-center gap-2">
             <button 
+              v-if="!isSuperAdmin"
               type="button" 
               @click="showAddHierarchyModal = true"
               class="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-2.5 rounded-lg text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
@@ -27,8 +32,30 @@
           </div>
         </div>
 
-        <!-- Tab Selector -->
-        <div class="flex gap-6 border-b border-gray-100 text-xs font-semibold pt-4 overflow-x-auto">
+        <!-- Tab Selector: Khusus Super Admin -->
+        <div v-if="isSuperAdmin" class="flex gap-6 border-b border-gray-100 text-xs font-semibold pt-4 overflow-x-auto">
+          <button 
+            type="button" 
+            @click="switchTab('users')" 
+            :class="currentTab === 'users' ? 'pb-3 text-blue-600 border-b-2 border-blue-600 font-bold whitespace-nowrap' : 'pb-3 text-gray-400 hover:text-gray-600 whitespace-nowrap'"
+            class="cursor-pointer flex items-center gap-2"
+          >
+            <i class="fas fa-users-gear text-sky-600"></i>
+            <span>Kelola Akun Pegawai ({{ users.total || users.data?.length || 0 }})</span>
+          </button>
+          <button 
+            type="button" 
+            @click="switchTab('branding')" 
+            :class="currentTab === 'branding' ? 'pb-3 text-blue-600 border-b-2 border-blue-600 font-bold whitespace-nowrap' : 'pb-3 text-gray-400 hover:text-gray-600 whitespace-nowrap'"
+            class="cursor-pointer flex items-center gap-2"
+          >
+            <i class="fas fa-palette text-amber-500"></i>
+            <span>Kelola Image & Logo</span>
+          </button>
+        </div>
+
+        <!-- Tab Selector: Admin/MUP Reguler -->
+        <div v-else class="flex gap-6 border-b border-gray-100 text-xs font-semibold pt-4 overflow-x-auto">
           <button 
             type="button" 
             @click="switchTab('hierarchy')" 
@@ -68,6 +95,14 @@
             class="cursor-pointer"
           >
             <i class="fas fa-shield-alt mr-1.5"></i> Matriks Wewenang BSD
+          </button>
+          <button 
+            type="button" 
+            @click="switchTab('branding')" 
+            :class="currentTab === 'branding' ? 'pb-3 text-blue-600 border-b-2 border-blue-600 font-bold whitespace-nowrap' : 'pb-3 text-gray-400 hover:text-gray-600 whitespace-nowrap'"
+            class="cursor-pointer"
+          >
+            <i class="fas fa-palette mr-1.5"></i> Kelola Image & Logo
           </button>
         </div>
       </div>
@@ -403,7 +438,10 @@
                   </td>
                   <td class="px-6 py-4 font-mono font-semibold text-gray-600">{{ usr.employee_no || '-' }}</td>
                   <td class="px-6 py-4">
-                    <span class="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded text-[10px] font-bold">
+                    <span v-if="usr.role?.name === 'SUPER_ADMIN'" class="bg-rose-50 text-rose-700 border border-rose-300 px-2.5 py-0.5 rounded text-[10px] font-black">
+                      SUPER ADMIN
+                    </span>
+                    <span v-else class="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded text-[10px] font-bold">
                       {{ usr.role?.name || 'STAFF' }}
                     </span>
                   </td>
@@ -470,6 +508,14 @@
                         title="Edit Pegawai"
                       >
                         <i class="fas fa-edit"></i> Edit
+                      </button>
+                      <button 
+                        type="button"
+                        @click="resetPassword(usr)" 
+                        class="px-2 py-1 bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-700 rounded text-xs font-bold transition border border-amber-200 flex items-center gap-1 cursor-pointer" 
+                        title="Reset Password Pegawai ke Default 123"
+                      >
+                        <i class="fas fa-key text-[10px]"></i> Reset 123
                       </button>
                       <button 
                         type="button"
@@ -541,7 +587,7 @@
                 <td class="px-4 py-3 font-bold text-blue-700">STAFF / PELAKSANA</td>
                 <td class="px-4 py-3">Hanya pelaporan issue lapangan</td>
                 <td class="px-4 py-3">Otomatis masuk ke TL</td>
-                <td class="px-4 py-3">Pekerjaan mandiri</td>
+                <td class="px-4 py-3">Task mandiri</td>
               </tr>
               <tr>
                 <td class="px-4 py-3 font-bold text-blue-700">TEAM LEADER (TL)</td>
@@ -564,6 +610,305 @@
             </tbody>
           </table>
         </div>
+      </div>
+
+      <!-- ==================== TAB 6: KELOLA IMAGE & LOGO (BRANDING) ==================== -->
+      <div v-if="currentTab === 'branding'" class="space-y-6">
+        
+        <!-- Header Information Card -->
+        <div class="bg-gradient-to-r from-[#0b1e36] to-[#0f3460] text-white rounded-2xl p-6 shadow-md border border-slate-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-sky-500/20 border border-sky-400/30 text-sky-300 text-[11px] font-bold">
+              <i class="fas fa-palette"></i>
+              <span>Kustomisasi Visual & Identitas Sistem</span>
+            </div>
+            <h3 class="text-base sm:text-lg font-black tracking-tight text-white mt-1">
+              Pengaturan Gambar Halaman Login & Logo Aplikasi
+            </h3>
+            <p class="text-xs text-slate-300 max-w-2xl leading-relaxed">
+              Super Admin dapat memperbarui foto latar belakang halaman login dan logo resmi PLN Nusantara Power secara mandiri. Perubahan langsung aktif secara real-time untuk seluruh pengguna tanpa kendala cache browser.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <a 
+              href="/login" 
+              target="_blank" 
+              class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <i class="fas fa-external-link-alt"></i>
+              <span>Cek Halaman Login</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Grid 2 Kolom: Background Login & Logo Aplikasi -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- CARD 1: BACKGROUND HALAMAN LOGIN -->
+          <div class="bg-white rounded-2xl border border-gray-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
+            <div>
+              <!-- Card Header -->
+              <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/60">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center text-base shadow-xs">
+                    <i class="fas fa-image"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-extrabold text-gray-800">Background Halaman Login</h4>
+                    <p class="text-[11px] text-gray-500">Foto landscape pemandangan / pembangkit UP Sengkang</p>
+                  </div>
+                </div>
+                <span class="text-[10px] font-extrabold bg-sky-100 text-sky-700 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                  Rasio 16:9 HD
+                </span>
+              </div>
+
+              <!-- Card Body: Preview Area -->
+              <div class="p-5 space-y-4">
+                <!-- Preview Frame with Mini Mockup Overlay -->
+                <div class="relative w-full aspect-video rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-900 group">
+                  <img 
+                    :src="bgPreview || branding?.login_bg_url || '/assets/bumn/bg-sengkang-hd.jpg'" 
+                    alt="Preview Background Login"
+                    class="w-full h-full object-cover object-center transition-all duration-300"
+                  />
+                  <!-- Gradient overlay -->
+                  <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent"></div>
+
+                  <!-- Mini Mockup Box Overlay to simulate real login -->
+                  <div class="absolute bottom-3 left-3 bg-white/90 backdrop-blur-md rounded-lg p-2.5 max-w-[200px] border border-white/40 shadow-lg text-[10px] pointer-events-none">
+                    <div class="flex items-center gap-1.5 mb-1">
+                      <img :src="logoPreview || branding?.logo_url || '/assets/bumn/logo-pln.png'" class="w-4 h-4 object-contain" />
+                      <span class="font-extrabold text-slate-800 text-[9px]">PLN NP Sengkang</span>
+                    </div>
+                    <div class="h-2 w-16 bg-slate-200 rounded mb-1"></div>
+                    <div class="h-4 w-full bg-blue-600 rounded text-white text-[8px] font-bold flex items-center justify-center">
+                      Masuk
+                    </div>
+                  </div>
+
+                  <!-- Badge Live Preview jika ada file terpilih -->
+                  <div v-if="bgPreview" class="absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md flex items-center gap-1 animate-pulse">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Pratinjau Foto Baru</span>
+                  </div>
+                </div>
+
+                <!-- Guidance Info -->
+                <div class="bg-slate-50 rounded-xl p-3 border border-slate-200/70 text-xs text-slate-600 space-y-1">
+                  <p class="font-bold text-slate-700 flex items-center gap-1.5 text-[11px]">
+                    <i class="fas fa-info-circle text-sky-500"></i> Ketentuan Foto Background:
+                  </p>
+                  <p class="text-[11px] text-slate-500 pl-4">
+                    &bull; Format: <strong>JPG, JPEG, PNG, WEBP</strong> (Maksimal 15 MB)<br />
+                    &bull; Resolusi ideal: <strong>1920 &times; 1080 piksel</strong> (Full HD Landscape)<br />
+                    &bull; Sistem otomatis memperbarui latar login untuk semua perangkat.
+                  </p>
+                </div>
+
+                <!-- Input File Picker -->
+                <div>
+                  <input 
+                    ref="bgFileInput" 
+                    type="file" 
+                    accept="image/png,image/jpeg,image/webp" 
+                    @change="onBgFileSelected" 
+                    class="hidden" 
+                    id="upload-bg-input"
+                  />
+                  <label 
+                    for="upload-bg-input" 
+                    class="w-full flex flex-col items-center justify-center p-4 border-2 border-dashed border-sky-300 hover:border-sky-500 rounded-xl bg-sky-50/50 hover:bg-sky-50 transition cursor-pointer text-center group"
+                  >
+                    <i class="fas fa-cloud-arrow-up text-2xl text-sky-500 group-hover:scale-110 transition-transform mb-1.5"></i>
+                    <span class="text-xs font-bold text-slate-700">Pilih Foto Background Baru</span>
+                    <span class="text-[10px] text-slate-400 mt-0.5">Klik untuk browse file gambar dari komputer/HP</span>
+                  </label>
+
+                  <!-- Status Selected File -->
+                  <div v-if="bgFile" class="mt-3 flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800">
+                    <div class="flex items-center gap-2 truncate">
+                      <i class="fas fa-file-image text-emerald-600 text-base"></i>
+                      <div class="truncate">
+                        <p class="font-bold truncate">{{ bgFile.name }}</p>
+                        <p class="text-[10px] text-emerald-600">{{ (bgFile.size / 1024 / 1024).toFixed(2) }} MB</p>
+                      </div>
+                    </div>
+                    <button 
+                      type="button" 
+                      @click="cancelBgSelection" 
+                      class="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs cursor-pointer"
+                      title="Batalkan Pilihan"
+                    >
+                      <i class="fas fa-times-circle text-base"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card Actions Footer -->
+            <div class="p-5 border-t border-gray-100 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
+              <button 
+                type="button" 
+                @click="confirmResetBg" 
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-gray-700 text-xs font-semibold shadow-2xs transition cursor-pointer active:scale-95"
+                title="Pulihkan kembali ke foto default pembangkit listrik UP Sengkang"
+              >
+                <i class="fas fa-rotate-left text-gray-500"></i>
+                <span>Kembalikan Default</span>
+              </button>
+
+              <button 
+                type="button" 
+                @click="submitUpdateBg" 
+                :disabled="!bgForm.background || bgForm.processing"
+                class="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <i v-if="bgForm.processing" class="fas fa-spinner fa-spin"></i>
+                <i v-else class="fas fa-check"></i>
+                <span>{{ bgForm.processing ? 'Menyimpan...' : 'Simpan Background Baru' }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CARD 2: LOGO RESMI APLIKASI / PLN -->
+          <div class="bg-white rounded-2xl border border-gray-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
+            <div>
+              <!-- Card Header -->
+              <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/60">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-base shadow-xs">
+                    <i class="fas fa-certificate"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-extrabold text-gray-800">Logo Resmi Aplikasi (PLN)</h4>
+                    <p class="text-[11px] text-gray-500">Logo resmi di sidebar, header, dan login box</p>
+                  </div>
+                </div>
+                <span class="text-[10px] font-extrabold bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                  PNG / SVG
+                </span>
+              </div>
+
+              <!-- Card Body: Preview Area -->
+              <div class="p-5 space-y-4">
+                <!-- Dual Preview: Mode Gelap (Sidebar) & Mode Terang (Header) -->
+                <div class="grid grid-cols-2 gap-3">
+                  
+                  <!-- Mode Gelap (Sidebar Dark #0b1e36) -->
+                  <div class="bg-[#0b1e36] rounded-xl p-4 border border-slate-700 text-center flex flex-col items-center justify-center min-h-[140px] relative">
+                    <span class="absolute top-2 left-2 text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
+                      Latar Gelap (Sidebar)
+                    </span>
+                    <div class="w-16 h-16 flex items-center justify-center my-auto">
+                      <img 
+                        :src="logoPreview || branding?.logo_url || '/assets/bumn/logo-pln.png'" 
+                        alt="Logo Preview Dark"
+                        class="max-w-full max-h-full object-contain filter drop-shadow-md"
+                      />
+                    </div>
+                    <span class="text-[10px] text-slate-300 font-bold mt-1">PLN NP UP Sengkang</span>
+                  </div>
+
+                  <!-- Mode Terang (Header / Card Putih) -->
+                  <div class="bg-slate-100 rounded-xl p-4 border border-slate-200 text-center flex flex-col items-center justify-center min-h-[140px] relative">
+                    <span class="absolute top-2 left-2 text-[9px] font-extrabold text-slate-500 uppercase tracking-wider">
+                      Latar Terang (Header)
+                    </span>
+                    <div class="w-16 h-16 flex items-center justify-center my-auto">
+                      <img 
+                        :src="logoPreview || branding?.logo_url || '/assets/bumn/logo-pln.png'" 
+                        alt="Logo Preview Light"
+                        class="max-w-full max-h-full object-contain filter drop-shadow-xs"
+                      />
+                    </div>
+                    <span class="text-[10px] text-slate-700 font-bold mt-1">PLN NP UP Sengkang</span>
+                  </div>
+
+                </div>
+
+                <!-- Guidance Info -->
+                <div class="bg-slate-50 rounded-xl p-3 border border-slate-200/70 text-xs text-slate-600 space-y-1">
+                  <p class="font-bold text-slate-700 flex items-center gap-1.5 text-[11px]">
+                    <i class="fas fa-info-circle text-amber-500"></i> Ketentuan File Logo:
+                  </p>
+                  <p class="text-[11px] text-slate-500 pl-4">
+                    &bull; Format: <strong>PNG (Transparan disarankan)</strong> atau <strong>WEBP/SVG</strong><br />
+                    &bull; Rasio: <strong>1:1 (Persegi/Square)</strong> minimal 200 &times; 200 piksel<br />
+                    &bull; Ukuran file: Maksimal <strong>5 MB</strong>.
+                  </p>
+                </div>
+
+                <!-- Input File Picker -->
+                <div>
+                  <input 
+                    ref="logoFileInput" 
+                    type="file" 
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml" 
+                    @change="onLogoFileSelected" 
+                    class="hidden" 
+                    id="upload-logo-input"
+                  />
+                  <label 
+                    for="upload-logo-input" 
+                    class="w-full flex flex-col items-center justify-center p-4 border-2 border-dashed border-amber-300 hover:border-amber-500 rounded-xl bg-amber-50/50 hover:bg-amber-50 transition cursor-pointer text-center group"
+                  >
+                    <i class="fas fa-cloud-arrow-up text-2xl text-amber-500 group-hover:scale-110 transition-transform mb-1.5"></i>
+                    <span class="text-xs font-bold text-slate-700">Pilih File Logo Baru</span>
+                    <span class="text-[10px] text-slate-400 mt-0.5">Klik untuk browse file PNG transparan baru</span>
+                  </label>
+
+                  <!-- Status Selected File -->
+                  <div v-if="logoFile" class="mt-3 flex items-center justify-between p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                    <div class="flex items-center gap-2 truncate">
+                      <i class="fas fa-file-image text-amber-600 text-base"></i>
+                      <div class="truncate">
+                        <p class="font-bold truncate">{{ logoFile.name }}</p>
+                        <p class="text-[10px] text-amber-700">{{ (logoFile.size / 1024 / 1024).toFixed(2) }} MB</p>
+                      </div>
+                    </div>
+                    <button 
+                      type="button" 
+                      @click="cancelLogoSelection" 
+                      class="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs cursor-pointer"
+                      title="Batalkan Pilihan"
+                    >
+                      <i class="fas fa-times-circle text-base"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card Actions Footer -->
+            <div class="p-5 border-t border-gray-100 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
+              <button 
+                type="button" 
+                @click="confirmResetLogo" 
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-gray-700 text-xs font-semibold shadow-2xs transition cursor-pointer active:scale-95"
+                title="Pulihkan kembali ke logo default resmi PLN"
+              >
+                <i class="fas fa-rotate-left text-gray-500"></i>
+                <span>Kembalikan Default</span>
+              </button>
+
+              <button 
+                type="button" 
+                @click="submitUpdateLogo" 
+                :disabled="!logoForm.logo || logoForm.processing"
+                class="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <i v-if="logoForm.processing" class="fas fa-spinner fa-spin"></i>
+                <i v-else class="fas fa-check"></i>
+                <span>{{ logoForm.processing ? 'Menyimpan...' : 'Simpan Logo Baru' }}</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
       </div>
 
     </div>
@@ -605,8 +950,13 @@
 
           <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
             <button type="button" @click="showAddHierarchyModal = false" class="px-4 py-2 border border-gray-200 text-gray-600 rounded-md text-xs hover:bg-gray-50 cursor-pointer">Batal</button>
-            <button type="submit" :disabled="hierarchyForm.processing" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer">
-              {{ hierarchyForm.processing ? 'Menyimpan...' : 'Simpan Relasi' }}
+            <button 
+              type="submit" 
+              :disabled="hierarchyForm.processing" 
+              class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <i v-if="hierarchyForm.processing" class="fas fa-spinner fa-spin text-xs"></i>
+              <span>{{ hierarchyForm.processing ? 'Menyimpan...' : 'Simpan Relasi' }}</span>
             </button>
           </div>
         </form>
@@ -663,8 +1013,8 @@
               </select>
             </div>
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">Password Awal <span class="text-red-500">*</span></label>
-              <input type="password" v-model="userForm.password" required placeholder="Minimal 6 karakter" class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500">
+              <label class="block text-xs font-bold text-gray-700 mb-1">Password Awal <span class="text-gray-400 font-normal">(Default: 123)</span></label>
+              <input type="text" v-model="userForm.password" placeholder="Kosongkan untuk otomatis 123" class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500">
             </div>
           </div>
 
@@ -697,8 +1047,13 @@
 
           <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
             <button type="button" @click="showAddUserModal = false" class="px-4 py-2 border border-gray-200 text-gray-600 rounded-md text-xs hover:bg-gray-50 cursor-pointer">Batal</button>
-            <button type="submit" :disabled="userForm.processing" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer">
-              {{ userForm.processing ? 'Menyimpan...' : 'Simpan Pegawai' }}
+            <button 
+              type="submit" 
+              :disabled="userForm.processing" 
+              class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <i v-if="userForm.processing" class="fas fa-spinner fa-spin text-xs"></i>
+              <span>{{ userForm.processing ? 'Menyimpan...' : 'Simpan Pegawai' }}</span>
             </button>
           </div>
         </form>
@@ -817,7 +1172,7 @@
             <label class="block text-xs font-bold text-gray-700 mb-1">
               Ganti Password <span class="text-gray-400 font-normal">(Kosongkan jika tidak ingin mengubah)</span>
             </label>
-            <input type="password" v-model="editUserForm.password" placeholder="Minimal 6 karakter" class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500">
+            <input type="password" v-model="editUserForm.password" placeholder="Ketik password baru (atau kosongkan jika tetap)" class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500">
             <p v-if="editUserForm.errors.password" class="text-rose-500 text-[10px] mt-1">{{ editUserForm.errors.password }}</p>
           </div>
 
@@ -836,7 +1191,11 @@
             <button type="button" @click="showEditUserModal = false" class="px-4 py-2 border border-gray-200 text-gray-600 rounded-md text-xs hover:bg-gray-50 cursor-pointer">
               Batal
             </button>
-            <button type="submit" :disabled="editUserForm.processing" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer flex items-center gap-1.5">
+            <button 
+              type="submit" 
+              :disabled="editUserForm.processing" 
+              class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
+            >
               <i v-if="editUserForm.processing" class="fas fa-spinner fa-spin"></i>
               <span>{{ editUserForm.processing ? 'Menyimpan...' : 'Simpan Perubahan' }}</span>
             </button>
@@ -849,12 +1208,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { router, Link, useForm } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import { router, Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useConfirm } from '@/Composables/useConfirm';
 
 const { confirm } = useConfirm();
+const page = usePage();
 
 const props = defineProps({
   users: Object,
@@ -876,12 +1236,126 @@ const props = defineProps({
     type: String,
     default: 'hierarchy',
   },
+  branding: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
-const currentTab = ref(props.activeTab || 'hierarchy');
+const isSuperAdmin = computed(() => {
+  const roleName = (page.props.auth?.user?.role?.name || '').toUpperCase();
+  return ['SUPER_ADMIN', 'SUPER ADMIN'].includes(roleName);
+});
+
+const currentTab = ref(props.activeTab || (isSuperAdmin.value ? 'users' : 'hierarchy'));
+
+watch(() => props.activeTab, (newTab) => {
+  if (newTab) currentTab.value = newTab;
+});
 
 function switchTab(tab) {
   currentTab.value = tab;
+  const url = new URL(window.location.href);
+  url.searchParams.set('tab', tab);
+  window.history.replaceState({}, '', url.toString());
+}
+
+// ==================== BRANDING & IMAGE MANAGEMENT ====================
+const bgFileInput = ref(null);
+const logoFileInput = ref(null);
+const bgFile = ref(null);
+const logoFile = ref(null);
+const bgPreview = ref(null);
+const logoPreview = ref(null);
+
+const bgForm = useForm({
+  background: null,
+});
+
+const logoForm = useForm({
+  logo: null,
+});
+
+function onBgFileSelected(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  bgFile.value = file;
+  bgForm.background = file;
+  bgPreview.value = URL.createObjectURL(file);
+}
+
+function cancelBgSelection() {
+  bgFile.value = null;
+  bgForm.background = null;
+  bgPreview.value = null;
+  if (bgFileInput.value) bgFileInput.value.value = '';
+}
+
+function submitUpdateBg() {
+  if (!bgForm.background) return;
+  bgForm.post('/master-data/branding/background', {
+    preserveScroll: true,
+    onSuccess: () => {
+      cancelBgSelection();
+    },
+  });
+}
+
+async function confirmResetBg() {
+  const confirmed = await confirm({
+    title: 'Kembalikan Foto Default?',
+    message: 'Gambar latar belakang login akan dipulihkan kembali ke foto default pembangkit listrik UP Sengkang.',
+    confirmText: 'Ya, Kembalikan',
+    cancelText: 'Batal',
+    type: 'warning',
+    icon: 'fas fa-rotate-left',
+  });
+  if (confirmed) {
+    router.post('/master-data/branding/reset-background', {}, {
+      preserveScroll: true,
+    });
+  }
+}
+
+function onLogoFileSelected(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  logoFile.value = file;
+  logoForm.logo = file;
+  logoPreview.value = URL.createObjectURL(file);
+}
+
+function cancelLogoSelection() {
+  logoFile.value = null;
+  logoForm.logo = null;
+  logoPreview.value = null;
+  if (logoFileInput.value) logoFileInput.value.value = '';
+}
+
+function submitUpdateLogo() {
+  if (!logoForm.logo) return;
+  logoForm.post('/master-data/branding/logo', {
+    preserveScroll: true,
+    onSuccess: () => {
+      cancelLogoSelection();
+    },
+  });
+}
+
+async function confirmResetLogo() {
+  const confirmed = await confirm({
+    title: 'Kembalikan Logo Default?',
+    message: 'Logo resmi aplikasi akan dipulihkan kembali ke logo default resmi PT PLN Nusantara Power.',
+    confirmText: 'Ya, Kembalikan',
+    cancelText: 'Batal',
+    type: 'warning',
+    icon: 'fas fa-rotate-left',
+  });
+  if (confirmed) {
+    router.post('/master-data/branding/reset-logo', {}, {
+      preserveScroll: true,
+    });
+  }
 }
 
 // User filter
@@ -935,6 +1409,7 @@ const hierarchyForm = useForm({
 });
 
 function submitAddHierarchy() {
+  if (hierarchyForm.processing) return;
   hierarchyForm.post('/master-data/hierarchies', {
     onSuccess: () => {
       showAddHierarchyModal.value = false;
@@ -943,7 +1418,9 @@ function submitAddHierarchy() {
   });
 }
 
+const isDeletingHierarchy = ref(false);
 async function deleteHierarchy(id) {
+  if (isDeletingHierarchy.value) return;
   const confirmed = await confirm({
     title: 'Hapus Relasi Hirarki',
     message: 'Apakah Anda yakin ingin menghapus relasi hirarki organisasi ini? Perubahan akan mempengaruhi alur pelaporan.',
@@ -953,7 +1430,13 @@ async function deleteHierarchy(id) {
     icon: 'fas fa-sitemap',
   });
   if (confirmed) {
-    router.delete(`/master-data/hierarchies/${id}`, { preserveScroll: true });
+    isDeletingHierarchy.value = true;
+    router.delete(`/master-data/hierarchies/${id}`, {
+      preserveScroll: true,
+      onFinish: () => {
+        isDeletingHierarchy.value = false;
+      },
+    });
   }
 }
 
@@ -978,6 +1461,7 @@ function onUserAvatarChange(e) {
 }
 
 function submitAddUser() {
+  if (userForm.processing) return;
   userForm.post('/master-data/users', {
     onSuccess: () => {
       showAddUserModal.value = false;
@@ -986,7 +1470,9 @@ function submitAddUser() {
   });
 }
 
+const isDeletingUser = ref(false);
 async function deleteUser(id) {
+  if (isDeletingUser.value) return;
   const confirmed = await confirm({
     title: 'Hapus Pengguna',
     message: 'Apakah Anda yakin ingin menghapus data akun pengguna ini? Tindakan ini tidak dapat dibatalkan.',
@@ -996,7 +1482,35 @@ async function deleteUser(id) {
     icon: 'fas fa-trash-can',
   });
   if (confirmed) {
-    router.delete(`/master-data/users/${id}`, { preserveScroll: true });
+    isDeletingUser.value = true;
+    router.delete(`/master-data/users/${id}`, {
+      preserveScroll: true,
+      onFinish: () => {
+        isDeletingUser.value = false;
+      },
+    });
+  }
+}
+
+const isResettingPassword = ref(false);
+async function resetPassword(user) {
+  if (isResettingPassword.value) return;
+  const confirmed = await confirm({
+    title: 'Reset Password Pegawai',
+    message: `Apakah Anda yakin ingin me-reset password untuk ${user.name} (NID: ${user.employee_no || '-'}) kembali ke default (123)?`,
+    confirmText: 'Ya, Reset ke 123',
+    cancelText: 'Batal',
+    type: 'warning',
+    icon: 'fas fa-key',
+  });
+  if (confirmed) {
+    isResettingPassword.value = true;
+    router.post(`/master-data/users/${user.id}/reset-password`, {}, {
+      preserveScroll: true,
+      onFinish: () => {
+        isResettingPassword.value = false;
+      },
+    });
   }
 }
 
@@ -1046,6 +1560,7 @@ function onEditUserAvatarChange(e) {
 }
 
 function submitEditUser() {
+  if (editUserForm.processing) return;
   editUserForm.transform((data) => ({
     ...data,
     _method: 'PUT',

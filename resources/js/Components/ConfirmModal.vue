@@ -60,11 +60,13 @@
 
               <button
                 type="button"
-                @click="handleConfirm"
-                class="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-white transition shadow-sm hover:shadow flex items-center justify-center gap-1.5 cursor-pointer"
+                :disabled="isSubmittingConfirm"
+                @click="onConfirmAction"
+                class="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-white transition shadow-sm hover:shadow flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
                 :class="confirmButtonClass"
               >
-                <span>{{ state.confirmText }}</span>
+                <i v-if="isSubmittingConfirm" class="fas fa-spinner fa-spin text-xs"></i>
+                <span>{{ isSubmittingConfirm ? 'Memproses...' : state.confirmText }}</span>
               </button>
             </div>
           </div>
@@ -75,10 +77,23 @@
 </template>
 
 <script setup>
-import { computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useConfirm } from '@/Composables/useConfirm';
 
 const { state, handleConfirm, handleCancel } = useConfirm();
+const isSubmittingConfirm = ref(false);
+
+watch(() => state.isOpen, (open) => {
+  if (open) {
+    isSubmittingConfirm.value = false;
+  }
+});
+
+function onConfirmAction() {
+  if (isSubmittingConfirm.value) return;
+  isSubmittingConfirm.value = true;
+  handleConfirm();
+}
 
 const modalIcon = computed(() => {
   if (state.icon) return state.icon;

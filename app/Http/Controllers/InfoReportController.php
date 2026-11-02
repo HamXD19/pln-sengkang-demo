@@ -110,6 +110,20 @@ class InfoReportController extends Controller
         $escalationQuery = Escalation::with(['issue', 'fromUser', 'toUser'])->latest();
         $decisionQuery = Decision::with(['issue', 'decisionMaker'])->latest();
 
+        $user = auth()->user();
+        $userRole = strtoupper(optional($user->role)->name ?? 'STAFF');
+        $authorizedUnitIds = $user->getAuthorizedUnitIds();
+
+        if (in_array($userRole, ['TL', 'ASMAN'])) {
+            $taskQuery->where(function($q) use ($authorizedUnitIds) {
+                $q->whereIn('unit_id', $authorizedUnitIds)
+                  ->orWhereHas('assignee', fn($sq) => $sq->whereIn('unit_id', $authorizedUnitIds));
+            });
+            $issueQuery->whereIn('unit_id', $authorizedUnitIds);
+            $escalationQuery->whereHas('issue', fn($iq) => $iq->whereIn('unit_id', $authorizedUnitIds));
+            $decisionQuery->whereHas('issue', fn($iq) => $iq->whereIn('unit_id', $authorizedUnitIds));
+        }
+
         // Periode filtering
         if ($periode === 'minggu_ini') {
             $taskQuery->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);

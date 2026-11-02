@@ -8,7 +8,7 @@
           <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
             <i class="fas fa-chart-line text-blue-600"></i> Laporan Berkala Koordinasi & Eskalasi UP Sengkang
           </h2>
-          <p class="text-xs text-gray-500 mt-1">Audit trail kepatuhan Lowest Competent Level, SLA pekerjaan, dan efektivitas eskalasi (FR-12 & BSD Section 9.6).</p>
+          <p class="text-xs text-gray-500 mt-1">Audit trail kepatuhan Lowest Competent Level, SLA Task, dan efektivitas eskalasi (FR-12 & BSD Section 9.6).</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
@@ -34,9 +34,16 @@
 
           <a 
             href="/laporan/export" 
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs"
+          >
+            <i class="fas fa-file-csv"></i> Export Data CSV
+          </a>
+
+          <a 
+            href="/download-akun-excel" 
             class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs"
           >
-            <i class="fas fa-file-csv"></i> Export CSV / Excel
+            <i class="fas fa-file-excel"></i> Unduh Excel Akun (154 Pegawai)
           </a>
         </div>
       </div>
@@ -75,7 +82,7 @@
           <p class="text-[10px] text-gray-400 mt-2">Akuntabilitas alur koordinasi</p>
         </div>
 
-        <!-- 3. Tingkat Penyelesaian Pekerjaan (SLA) -->
+        <!-- 3. Tingkat Penyelesaian Task (SLA) -->
         <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-xs flex flex-col justify-between">
           <div>
             <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Realisasi Task (SLA)</span>
@@ -121,7 +128,8 @@
         <h3 class="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
           <i class="fas fa-gavel text-blue-600"></i> Audit Trail: Rekap Putusan Terkini
         </h3>
-        <div class="overflow-x-auto">
+        <!-- Desktop Table: Rekap Putusan -->
+        <div class="hidden md:block overflow-x-auto">
           <table class="w-full text-left text-xs whitespace-nowrap">
             <thead class="bg-[#f8fafc] border-b border-gray-100 text-gray-500 font-semibold">
               <tr>
@@ -157,18 +165,53 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Mobile Card Feed: Rekap Putusan -->
+        <div class="md:hidden space-y-3">
+          <template v-if="recentDecisions && recentDecisions.length > 0">
+            <div 
+              v-for="dec in recentDecisions" 
+              :key="dec.id" 
+              class="bg-slate-50 rounded-xl border border-slate-200/80 p-3.5 space-y-2 text-xs"
+            >
+              <div class="flex items-center justify-between">
+                <span class="bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded text-[10px]">
+                  Level {{ dec.decision_level }}
+                </span>
+                <span class="text-[11px] text-slate-400 font-mono">{{ formatDateOnly(dec.created_at) }}</span>
+              </div>
+              <p class="font-bold text-slate-800 italic">"{{ dec.decision }}"</p>
+              <div v-if="dec.issue" class="pt-1.5 border-t border-slate-200/60 flex items-center justify-between">
+                <Link :href="`/issues/${dec.issue.id}`" class="text-blue-600 font-semibold truncate pr-2">
+                  #{{ dec.issue.issue_no }} - {{ dec.issue.title }}
+                </Link>
+                <Link :href="`/issues/${dec.issue.id}`" class="text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[10px] font-bold shrink-0">
+                  Lihat
+                </Link>
+              </div>
+              <div class="text-[10px] text-slate-500">
+                Oleh: <strong class="text-slate-700">{{ dec.decision_maker?.name || '-' }}</strong>
+              </div>
+            </div>
+          </template>
+          <div v-else class="text-center py-6 text-slate-400 text-xs">
+            Tidak ada riwayat putusan pada periode ini.
+          </div>
+        </div>
       </div>
 
-      <!-- Tabel Penugasan Pekerjaan -->
+      <!-- Tabel Penugasan Task -->
       <div class="bg-white rounded-xl border border-gray-100 shadow-xs p-5">
         <h3 class="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <i class="fas fa-tasks text-emerald-600"></i> Rekap Penugasan Pekerjaan (Tasks)
+          <i class="fas fa-tasks text-emerald-600"></i> Rekap Penugasan Task
         </h3>
-        <div class="overflow-x-auto">
+
+        <!-- Desktop Table: Rekap Task -->
+        <div class="hidden md:block overflow-x-auto">
           <table class="w-full text-left text-xs whitespace-nowrap">
             <thead class="bg-[#f8fafc] border-b border-gray-100 text-gray-500 font-semibold">
               <tr>
-                <th class="px-4 py-3">Nama Pekerjaan</th>
+                <th class="px-4 py-3">Nama Task</th>
                 <th class="px-4 py-3">PIC Pelaksana</th>
                 <th class="px-4 py-3">Tenggat Waktu</th>
                 <th class="px-4 py-3">Progres</th>
@@ -190,10 +233,38 @@
                 </tr>
               </template>
               <tr v-else>
-                <td colspan="5" class="text-center py-6 text-gray-400">Tidak ada penugasan pekerjaan pada periode ini.</td>
+                <td colspan="5" class="text-center py-6 text-gray-400">Tidak ada penugasan task pada periode ini.</td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Mobile Card Feed: Rekap Task -->
+        <div class="md:hidden space-y-3">
+          <template v-if="tasks && tasks.length > 0">
+            <div 
+              v-for="tsk in tasks" 
+              :key="tsk.id" 
+              class="bg-slate-50 rounded-xl border border-slate-200/80 p-3.5 space-y-2 text-xs"
+            >
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-800">{{ tsk.title }}</span>
+                <span :class="statusBadgeClass(tsk.status)" class="text-[10px] px-2 py-0.5 rounded-full font-bold">
+                  {{ tsk.status }}
+                </span>
+              </div>
+              <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                <div class="bg-blue-600 h-1.5 rounded-full" :style="`width: ${tsk.progress_percent || 0}%`"></div>
+              </div>
+              <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                <span>PIC: <b class="text-slate-700">{{ tsk.assignee?.name || '-' }}</b></span>
+                <span class="font-mono">{{ tsk.due_date ? formatDateOnly(tsk.due_date) : '-' }}</span>
+              </div>
+            </div>
+          </template>
+          <div v-else class="text-center py-6 text-slate-400 text-xs">
+            Tidak ada penugasan task pada periode ini.
+          </div>
         </div>
       </div>
 

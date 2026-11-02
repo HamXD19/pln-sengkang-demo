@@ -239,9 +239,10 @@
             <button 
               type="submit" 
               :disabled="createForm.processing"
-              class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
             >
-              <i class="fas fa-paper-plane"></i> 
+              <i v-if="createForm.processing" class="fas fa-spinner fa-spin text-xs"></i>
+              <i v-else class="fas fa-paper-plane"></i> 
               {{ createForm.processing ? 'Menerbitkan...' : 'Publikasikan' }}
             </button>
           </div>
@@ -307,6 +308,7 @@ const createForm = useForm({
 });
 
 function submitCreate() {
+  if (createForm.processing) return;
   createForm.post('/informasi', {
     onSuccess: () => {
       showCreateModal.value = false;
@@ -315,7 +317,9 @@ function submitCreate() {
   });
 }
 
+const isDeletingInfo = ref(false);
 async function deleteInfo(id) {
+  if (isDeletingInfo.value) return;
   const confirmed = await confirm({
     title: 'Hapus Informasi',
     message: 'Apakah Anda yakin ingin menghapus arahan / informasi ini dari papan pengumuman?',
@@ -325,7 +329,13 @@ async function deleteInfo(id) {
     icon: 'fas fa-trash-can',
   });
   if (confirmed) {
-    router.delete(`/informasi/${id}`, { preserveScroll: true });
+    isDeletingInfo.value = true;
+    router.delete(`/informasi/${id}`, {
+      preserveScroll: true,
+      onFinish: () => {
+        isDeletingInfo.value = false;
+      },
+    });
   }
 }
 

@@ -14,7 +14,7 @@ class Issue extends Model
 
     protected $guarded = [];
 
-    protected $appends = ['sla_info', 'attachment_url', 'attachment_name', 'is_image_attachment', 'clean_description', 'hierarchy_line'];
+    protected $appends = ['sla_info', 'attachment_url', 'attachment_name', 'is_image_attachment', 'document_url', 'document_name', 'clean_description', 'hierarchy_line'];
 
     /**
      * Jalur hierarki pelaporan untuk isu ini: Staff Pelapor -> TL -> ASMAN -> MUP
@@ -30,7 +30,7 @@ class Issue extends Model
     public function getAttachmentUrlAttribute(): ?string
     {
         $file = $this->attachment;
-        if (!$file && preg_match('/\[Lampiran:\s*([^\]]+)\]/i', $this->description, $matches)) {
+        if (!$file && preg_match('/\[Lampiran:\s*([^\]]+)\]/i', $this->description ?? '', $matches)) {
             $file = trim($matches[1]);
         }
 
@@ -59,7 +59,7 @@ class Issue extends Model
     public function getAttachmentNameAttribute(): ?string
     {
         $file = $this->attachment;
-        if (!$file && preg_match('/\[Lampiran:\s*([^\]]+)\]/i', $this->description, $matches)) {
+        if (!$file && preg_match('/\[Lampiran:\s*([^\]]+)\]/i', $this->description ?? '', $matches)) {
             $file = trim($matches[1]);
         }
         return $file;
@@ -68,10 +68,43 @@ class Issue extends Model
     /**
      * Cek apakah lampiran berupa file gambar
      */
-    public function getIsImageAttachmentAttribute(): bool
+     public function getIsImageAttachmentAttribute(): bool
+     {
+         $name = strtolower($this->attachment_name ?: '');
+         return (bool) preg_match('/\.(jpg|jpeg|png|gif|webp|svg)$/i', $name);
+     }
+
+    /**
+     * Accessor URL file dokumen pendukung (PDF, DOCX, XLSX)
+     */
+    public function getDocumentUrlAttribute(): ?string
     {
-        $name = strtolower($this->attachment_name ?: '');
-        return (bool) preg_match('/\.(jpg|jpeg|png|gif|webp|svg)$/i', $name);
+        $file = $this->document;
+        if (!$file) {
+            return null;
+        }
+
+        if (str_starts_with($file, 'http://') || str_starts_with($file, 'https://')) {
+            return $file;
+        }
+
+        if (file_exists(public_path('uploads/issues/' . $file))) {
+            return asset('uploads/issues/' . $file);
+        }
+
+        if (file_exists(public_path('storage/' . $file))) {
+            return asset('storage/' . $file);
+        }
+
+        return asset('uploads/issues/' . $file);
+    }
+
+    /**
+     * Accessor nama file dokumen pendukung
+     */
+    public function getDocumentNameAttribute(): ?string
+    {
+        return $this->document;
     }
 
     /**

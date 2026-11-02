@@ -2,8 +2,12 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#ffffff">
     <title inertia>{{ config('app.name', 'Sistem Koordinasi UP Sengkang') }}</title>
 
     <!-- Preconnect CDNs for fast DNS & TLS handshake -->
@@ -17,6 +21,23 @@
 
     <!-- FontAwesome 6 Icons CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --sat: env(safe-area-inset-top, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+        }
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom, 12px);
+        }
+        .pt-safe {
+            padding-top: env(safe-area-inset-top, 0px);
+        }
+        /* Mobile touch tap highlight reset */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @inertiaHead

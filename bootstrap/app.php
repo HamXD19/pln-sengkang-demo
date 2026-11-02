@@ -14,6 +14,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         $middleware->web(append: [
+            \App\Http\Middleware\PreventDuplicateSubmissions::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
 

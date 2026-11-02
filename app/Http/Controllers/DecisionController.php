@@ -61,7 +61,8 @@ class DecisionController extends Controller
     public function store(Request $request, $issue_id)
     {
         $request->validate([
-            'decision' => 'required|string|min:5',
+            'meeting_id' => 'required|exists:meetings,id',
+            'decision' => $request->boolean('escalate_issue') ? 'nullable|string' : 'required|string|min:2',
             'rationale' => 'nullable|string',
             'follow_up' => 'nullable|string',
             'mark_resolved' => 'nullable|boolean',
@@ -69,7 +70,19 @@ class DecisionController extends Controller
             'task_assignee_id' => 'nullable|exists:users,id',
             'task_due_date' => 'nullable|date',
             'task_title' => 'nullable|string|max:255',
+            'escalate_issue' => 'nullable|boolean',
+            'escalation_reason' => 'nullable|string',
+        ], [
+            'decision.required' => 'Rumusan keputusan pimpinan wajib diisi.',
+            'decision.min' => 'Rumusan keputusan pimpinan minimal 2 karakter.',
+            'meeting_id.required' => 'Ruang rapat wajib dipilih.',
+            'meeting_id.exists' => 'Data rapat tidak ditemukan.',
         ]);
+
+        $meeting = \App\Models\Meeting::findOrFail($request->meeting_id);
+        if ($meeting->status !== 'Berlangsung') {
+            return back()->with('error', 'Pengambilan keputusan hanya dapat dilakukan di dalam forum/ruang rapat yang berstatus Berlangsung.');
+        }
 
         $issue = Issue::findOrFail($issue_id);
         $userRole = strtoupper(auth()->user()->role->name ?? '');
@@ -83,11 +96,27 @@ class DecisionController extends Controller
             return back()->with('error', "Anda ({$userRole}) tidak berwenang memutuskan isu pada jenjang {$issue->current_level}. Prinsip BSD mewajibkan putusan di Lowest Competent Level.");
         }
 
+        $isDirectToMup = !empty($issue->hierarchy_line['is_direct_to_mup']) 
+            || empty($issue->hierarchy_line['asman']);
+
+        $targetLevel = 'ASMAN';
+        if ($issue->current_level === 'TL') {
+            $targetLevel = $isDirectToMup ? 'MUP' : 'ASMAN';
+        } elseif ($issue->current_level === 'ASMAN') {
+            $targetLevel = 'MUP';
+        }
+
+        $decisionText = $request->decision;
+        if ($request->boolean('escalate_issue') && (empty($decisionText) || trim($decisionText) === '')) {
+            $decisionText = "Eskalasi Isu ke {$targetLevel}: " . ($request->escalation_reason ?: ($request->follow_up ?: ($request->rationale ?: 'Mohon arahan dan tindak lanjut pimpinan level lebih tinggi.')));
+        }
+
         $decision = Decision::create([
+            'meeting_id' => $meeting->id,
             'issue_id' => $issue->id,
             'decision_by' => auth()->id(),
             'decision_level' => in_array($userRole, ['TL', 'ASMAN', 'MUP']) ? $userRole : 'TL',
-            'decision' => $request->decision,
+            'decision' => $decisionText,
             'rationale' => $request->rationale,
             'follow_up' => $request->follow_up,
         ]);
@@ -95,7 +124,7 @@ class DecisionController extends Controller
         // Otomatisasi Tindak Lanjut Menjadi Task (BR-07 & AT-06)
         $createdTaskMsg = '';
         if ($request->boolean('create_task') || ($request->filled('task_assignee_id') && ($request->filled('follow_up') || $request->filled('task_title')))) {
-            $taskTitle = $request->task_title ?: ('Tindak Lanjut: ' . Str::limit($request->decision, 60));
+            $taskTitle = $request->task_title ?: ('Tindak Lanjut: ' . Str::limit($decisionText, 60));
             $dueDate = $request->task_due_date ?: now()->addDays(3)->toDateString();
             $assigneeId = $request->task_assignee_id ?: auth()->id();
             $assignee = User::find($assigneeId);
@@ -105,7 +134,7 @@ class DecisionController extends Controller
                 'issue_id' => $issue->id,
                 'decision_id' => $decision->id,
                 'title' => $taskTitle,
-                'description' => $request->follow_up ?: $request->decision,
+                'description' => $request->follow_up ?: $decisionText,
                 'assigned_to' => $assigneeId,
                 'assigned_by' => auth()->id(),
                 'unit_id' => $taskUnitId,
@@ -120,15 +149,63 @@ class DecisionController extends Controller
             $createdTaskMsg = " dan otomatis dibuatkan Task #{$task->id} untuk PIC pelaksana";
         }
 
-        $newStatus = $request->boolean('mark_resolved') ? 'Resolved' : 'Decided';
-        $issue->update([
-            'status' => $newStatus,
-        ]);
+        $escalatedMsg = '';
+        if ($request->boolean('escalate_issue') && in_array($issue->current_level, ['TL', 'ASMAN'])) {
+            if ($issue->current_level === 'TL') {
+                $fromLevel = 'TL';
+                $toLevel = $targetLevel;
+                $toUserId = auth()->user()->asman_id ?? User::whereHas('role', fn($q)=>$q->where('name', 'ASMAN'))->first()?->id;
+            } else {
+                $fromLevel = 'ASMAN';
+                $toLevel = 'MUP';
+                $toUserId = User::whereHas('role', fn($q)=>$q->where('name', 'MUP'))->first()?->id;
+            }
 
-        if ($request->filled('redirect_to')) {
-            return redirect($request->redirect_to)->with('success', "Keputusan berhasil disimpan{$createdTaskMsg}.");
+            \App\Models\Escalation::create([
+                'issue_id' => $issue->id,
+                'from_level' => $fromLevel,
+                'from_user_id' => auth()->id() ?? 1,
+                'to_level' => $toLevel,
+                'to_user_id' => $toUserId,
+                'reason' => $request->escalation_reason ?: ($request->follow_up ?: ($request->rationale ?: $decisionText)),
+                'status' => 'Pending',
+            ]);
+
+            $issue->update([
+                'current_level' => $toLevel,
+                'status' => 'Escalated',
+            ]);
+
+            $meeting->issues()->syncWithoutDetaching([$issue->id => [
+                'status' => 'Dieskalasi',
+                'notes' => "Putusan rapat: Dieskalasikan ke {$toLevel}",
+            ]]);
+
+            $escalatedMsg = " serta berhasil dieskalasikan ke jenjang {$toLevel}";
+        } else {
+            $newStatus = $request->boolean('mark_resolved') ? 'Closed' : 'In Progress';
+            $issue->update([
+                'status' => $newStatus,
+            ]);
+
+            // Perbarui rekap eskalasi sebelumnya menjadi Decided karena telah diputuskan oleh atasan
+            \App\Models\Escalation::where('issue_id', $issue->id)
+                ->where('status', 'Pending')
+                ->update([
+                    'status' => 'Decided',
+                    'to_user_id' => auth()->id(),
+                ]);
+
+            $meeting->issues()->syncWithoutDetaching([$issue->id => [
+                'status' => 'Diputuskan',
+                'notes' => 'Putusan rapat: ' . Str::limit($decisionText, 100),
+            ]]);
         }
 
-        return redirect()->route('issues.show', $issue->id)->with('success', "Keputusan atasan berhasil dicatat{$createdTaskMsg}.");
+        if ($request->filled('redirect_to')) {
+            return redirect($request->redirect_to)->with('success', "Keputusan berhasil disimpan{$createdTaskMsg}{$escalatedMsg}.");
+        }
+
+        return back()->with('success', "Keputusan atasan berhasil dicatat{$createdTaskMsg}{$escalatedMsg}.");
     }
 }

@@ -131,7 +131,7 @@ class User extends Authenticatable
 
         $roleName = strtoupper($this->role->name ?? '');
 
-        if ($roleName === 'MUP' || $roleName === 'ADMIN') {
+        if (in_array($roleName, ['MUP', 'ADMIN', 'SUPER_ADMIN', 'SUPER ADMIN'], true)) {
             return $this->memoizedAuthorizedUnitIds = OrganizationUnit::pluck('id')->toArray();
         }
 
@@ -163,7 +163,7 @@ class User extends Authenticatable
 
         $roleName = strtoupper($this->role->name ?? '');
 
-        if ($roleName === 'MUP' || $roleName === 'ADMIN') {
+        if (in_array($roleName, ['MUP', 'ADMIN', 'SUPER_ADMIN', 'SUPER ADMIN'], true)) {
             return $this->memoizedSubordinateUserIds = self::pluck('id')->toArray();
         }
 

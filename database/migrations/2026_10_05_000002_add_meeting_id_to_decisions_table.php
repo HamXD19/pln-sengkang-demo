@@ -1,0 +1,27 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('decisions', function (Blueprint $table) {
+            if (!Schema::hasColumn('decisions', 'meeting_id')) {
+                $table->foreignId('meeting_id')->nullable()->constrained('meetings')->nullOnDelete();
+            }
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('decisions', function (Blueprint $table) {
+            if (Schema::hasColumn('decisions', 'meeting_id')) {
+                $table->dropForeign(['meeting_id']);
+                $table->dropColumn('meeting_id');
+            }
+        });
+    }
+};

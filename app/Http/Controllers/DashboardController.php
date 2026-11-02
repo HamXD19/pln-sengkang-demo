@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Decision;
 use App\Models\Issue;
+use App\Models\Meeting;
+use App\Models\OrganizationUnit;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
@@ -14,6 +17,11 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
         $roleName = strtoupper(optional($user->role)->name ?? 'STAFF');
+
+        if (in_array($roleName, ['SUPER_ADMIN', 'SUPER ADMIN'])) {
+            return redirect()->route('master.index', ['tab' => 'users']);
+        }
+
         $authorizedUnitIds = $user->getAuthorizedUnitIds();
         $currentWeek = now()->isoWeek();
         $siklus = $request->get('siklus', 'semua');
@@ -140,69 +148,6 @@ class DashboardController extends Controller
             ]
         ];
 
-        // ==================== DATA MONITORING MANAJEMEN TUGAS ====================
-        $totalPembahasan = (clone $issueQuery)->count() + (clone $taskQuery)->count();
-        $totalOpen = (clone $taskQuery)->where('status', 'Open')->count() + (clone $issueQuery)->where('status', 'Open')->count();
-        $totalOnProgressTasks = (clone $taskQuery)->whereIn('status', ['In Progress', 'On Progress'])->count();
-        $totalClosedTasks = (clone $taskQuery)->whereIn('status', ['Resolved', 'Closed', 'Selesai'])->count();
-        $totalOverdue = $overdueTasks;
-
-        // Scoped monitoring queries
-        $scopedMonitoringPic = Task::with('assignee')->whereNotIn('status', ['Selesai', 'Closed', 'Resolved']);
-        $scopedPrioritasAlert = Issue::with(['owner', 'reporter', 'decisions', 'tasks']);
-
-        if ($roleName === 'STAFF') {
-            $scopedMonitoringPic->where('assigned_to', $user->id);
-            $scopedPrioritasAlert->where('reported_by', $user->id);
-        } elseif ($roleName === 'TL') {
-            $scopedMonitoringPic->where(fn($q) => $q->whereIn('unit_id', $authorizedUnitIds)->orWhere('assigned_to', $user->id));
-            $scopedPrioritasAlert->whereIn('unit_id', $authorizedUnitIds);
-        } elseif ($roleName === 'ASMAN') {
-            $scopedMonitoringPic->whereIn('unit_id', $authorizedUnitIds);
-            $subordinateIds = $user->getSubordinateUserIds();
-            $scopedPrioritasAlert->whereIn('unit_id', $authorizedUnitIds)
-                ->where(function ($q) use ($user, $subordinateIds) {
-                    $q->whereIn('current_level', ['ASMAN', 'MUP'])
-                      ->orWhereHas('escalations', fn($eq) => $eq->where('to_level', 'ASMAN'))
-                      ->orWhere('reported_by', $user->id);
-                });
-        } elseif ($roleName === 'MUP') {
-            $scopedPrioritasAlert->where(function ($q) use ($user) {
-                $q->where('current_level', 'MUP')
-                  ->orWhereHas('escalations', fn($eq) => $eq->where('to_level', 'MUP'))
-                  ->orWhere('reported_by', $user->id);
-            });
-        }
-
-        $manajemenTugas = [
-            'siklus_aktif' => $siklus,
-            'minggu_berjalan' => $currentWeek,
-            'kpi' => [
-                'pembahasan' => $totalPembahasan,
-                'open' => $totalOpen,
-                'on_progress' => $totalOnProgressTasks,
-                'overdue' => $totalOverdue,
-            ],
-            'status_pekerjaan' => [
-                'open' => (clone $taskQuery)->where('status', 'Open')->count(),
-                'in_progress' => (clone $taskQuery)->whereIn('status', ['In Progress', 'On Progress'])->count(),
-                'closed' => $totalClosedTasks,
-            ],
-            'status_eskalasi' => [
-                'closed_info' => (clone $issueQuery)->where('status', 'Closed')->orWhere('issue_type', 'INFORMATION')->count(),
-                'escalated_level1' => (clone $issueQuery)->whereIn('current_level', ['TL', 'ASMAN'])->count(),
-                'escalated_mup' => (clone $issueQuery)->where('current_level', 'MUP')->count(),
-            ],
-            'deadline' => [
-                'overdue' => $totalOverdue,
-                'due_3_days' => (clone $taskQuery)->whereNotIn('status', ['Selesai', 'Closed', 'Resolved'])->whereBetween('due_date', [$today, $threeDaysLater])->count(),
-                'on_track' => (clone $taskQuery)->whereNotIn('status', ['Selesai', 'Closed', 'Resolved'])->where('due_date', '>', $threeDaysLater)->count(),
-                'closed' => $totalClosedTasks,
-            ],
-            'monitoring_pic' => $scopedMonitoringPic->latest()->take(6)->get(),
-            'prioritas_alert' => $scopedPrioritasAlert->latest()->take(8)->get(),
-        ];
-
         // Isu yang berada di level review sesuai jenjang wewenang & alur eskalasi
         $issuesUnderReviewQuery = Issue::with(['reporter', 'owner', 'organizationUnit'])->latest();
         if ($roleName === 'STAFF') {
@@ -219,7 +164,7 @@ class DashboardController extends Controller
         $issuesUnderReview = $issuesUnderReviewQuery->take(10)->get();
 
         // Pekerjaan Tim Terkini (Scoped)
-        $tasksScopedQuery = Task::with(['assignee', 'issue'])->latest();
+        $tasksScopedQuery = Task::with(['assignee', 'issue', 'organizationUnit'])->latest();
         if ($roleName === 'STAFF') {
             $tasksScopedQuery->where('assigned_to', $user->id);
         } elseif ($roleName === 'TL') {
@@ -234,6 +179,15 @@ class DashboardController extends Controller
         $escalatedIssues = null;
         $criticalIssues = null;
 
+        // Executive / MUP Data Properties
+        $executiveStats = null;
+        $departmentMetrics = [];
+        $allActiveIssuesUnit = [];
+        $criticalOverdueTasks = [];
+        $recentMupDecisions = [];
+        $upcomingMeetings = [];
+        $assignableUsers = [];
+
         if ($roleName === 'STAFF') {
             $myTasks = Task::with('issue')->where('assigned_to', $user->id)->get();
             $myTaskStats = [
@@ -245,24 +199,168 @@ class DashboardController extends Controller
         } elseif ($roleName === 'ASMAN') {
             $escalatedIssues = Issue::whereIn('unit_id', $authorizedUnitIds)
                 ->where('current_level', 'ASMAN')
-                ->with(['reporter', 'escalations.fromUser'])
+                ->with(['reporter', 'escalations.fromUser', 'organizationUnit'])
                 ->latest()
                 ->get();
-        } elseif ($roleName === 'MUP') {
+        } elseif ($roleName === 'MUP' || $roleName === 'ADMIN') {
+            // 1. Isu Kritis menunggu putusan MUP
             $criticalIssues = Issue::where('current_level', 'MUP')
-                ->with(['reporter', 'owner', 'escalations.fromUser'])->latest()->get();
+                ->with(['reporter', 'owner', 'organizationUnit', 'escalations.fromUser', 'decisions.decisionMaker'])
+                ->latest()
+                ->get();
+
+            // 2. Seluruh Isu Aktif Unit (untuk toggle pemantauan menyeluruh MUP)
+            $allActiveIssuesUnit = Issue::whereNotIn('status', ['Resolved', 'Closed'])
+                ->with(['reporter', 'owner', 'organizationUnit', 'escalations.fromUser', 'decisions.decisionMaker'])
+                ->latest()
+                ->take(15)
+                ->get();
+
+            // 3. Matriks Kinerja Lintas Bidang (6 Departemen Utama UP Sengkang)
+            $depts = OrganizationUnit::where('parent_unit_id', 1)->with('children')->get();
+            foreach ($depts as $dept) {
+                $unitIds = array_merge([$dept->id], $dept->children->pluck('id')->toArray());
+                
+                $leader = User::whereIn('unit_id', $unitIds)
+                    ->whereHas('role', fn($r) => $r->whereIn('name', ['ASMAN', 'TL']))
+                    ->join('roles', 'users.role_id', '=', 'roles.id')
+                    ->orderByRaw("CASE WHEN roles.name = 'ASMAN' THEN 1 ELSE 2 END")
+                    ->select('users.*')
+                    ->first();
+
+                $deptTotalTasks = Task::whereIn('unit_id', $unitIds)->count();
+                $deptCompletedTasks = Task::whereIn('unit_id', $unitIds)->whereIn('status', ['Resolved', 'Closed', 'Selesai'])->count();
+                $deptOnProgressTasks = Task::whereIn('unit_id', $unitIds)->whereIn('status', ['In Progress', 'On Progress'])->count();
+                $deptOverdueTasks = Task::whereIn('unit_id', $unitIds)
+                    ->where(function ($q) use ($today) {
+                        $q->where(function ($sub) use ($today) {
+                            $sub->whereNotIn('status', ['Resolved', 'Closed', 'Selesai'])->where('due_date', '<', $today);
+                        })->orWhereIn('status', ['Terlambat', 'Overdue']);
+                    })
+                    ->where(function ($q) {
+                        $q->whereNull('progress_percent')->orWhere('progress_percent', '<', 100);
+                    })->count();
+
+                $deptActiveIssues = Issue::whereIn('unit_id', $unitIds)->whereNotIn('status', ['Resolved', 'Closed'])->count();
+                $deptCriticalIssues = Issue::whereIn('unit_id', $unitIds)->whereNotIn('status', ['Resolved', 'Closed'])->whereIn('priority', ['HIGH', 'CRITICAL'])->count();
+
+                $health = 'Aman';
+                if ($deptCriticalIssues > 0 || $deptOverdueTasks > 2) {
+                    $health = 'Kritis';
+                } elseif ($deptOverdueTasks > 0 || $deptActiveIssues > 0) {
+                    $health = 'Perlu Perhatian';
+                }
+
+                $departmentMetrics[] = [
+                    'id' => $dept->id,
+                    'name' => $dept->name,
+                    'unit_ids' => $unitIds,
+                    'leader' => $leader ? [
+                        'name' => $leader->name,
+                        'role' => $leader->role?->name,
+                        'position' => $leader->position?->name,
+                        'avatar_url' => $leader->avatar_url,
+                    ] : null,
+                    'total_tasks' => $deptTotalTasks,
+                    'completed_tasks' => $deptCompletedTasks,
+                    'on_progress_tasks' => $deptOnProgressTasks,
+                    'overdue_tasks' => $deptOverdueTasks,
+                    'active_issues' => $deptActiveIssues,
+                    'critical_issues' => $deptCriticalIssues,
+                    'health' => $health,
+                ];
+            }
+
+            // 4. Ringkasan Eksekutif (Executive KPIs)
+            $totalUnitTasks = Task::count();
+            $totalUnitCompletedTasks = Task::whereIn('status', ['Resolved', 'Closed', 'Selesai'])->count();
+            $totalUnitOverdueTasks = Task::where(function ($q) use ($today) {
+                $q->where(function ($sub) use ($today) {
+                    $sub->whereNotIn('status', ['Resolved', 'Closed', 'Selesai'])->where('due_date', '<', $today);
+                })->orWhereIn('status', ['Terlambat', 'Overdue']);
+            })->where(function ($q) {
+                $q->whereNull('progress_percent')->orWhere('progress_percent', '<', 100);
+            })->count();
+
+            $totalUnitActiveIssues = Issue::whereNotIn('status', ['Resolved', 'Closed'])->count();
+            $pendingMupDecisions = Issue::where('current_level', 'MUP')->whereNotIn('status', ['Resolved', 'Closed'])->count();
+            $slaBreachedIssues = Issue::whereNotIn('status', ['Resolved', 'Closed'])->whereNotNull('due_date')->where('due_date', '<', now())->count();
+
+            $slaComplianceRate = 100;
+            if ($totalUnitTasks + $totalUnitActiveIssues > 0) {
+                $troubled = $totalUnitOverdueTasks + $slaBreachedIssues;
+                $totalItems = $totalUnitTasks + $totalUnitActiveIssues;
+                $slaComplianceRate = max(0, min(100, round((($totalItems - $troubled) / $totalItems) * 100)));
+            }
+
+            $executiveStats = [
+                'pending_mup_decisions' => $pendingMupDecisions,
+                'total_active_issues' => $totalUnitActiveIssues,
+                'total_overdue_tasks' => $totalUnitOverdueTasks,
+                'total_unit_tasks' => $totalUnitTasks,
+                'total_completed_tasks' => $totalUnitCompletedTasks,
+                'completion_rate' => $totalUnitTasks > 0 ? round(($totalUnitCompletedTasks / $totalUnitTasks) * 100) : 0,
+                'sla_breached_issues' => $slaBreachedIssues,
+                'sla_compliance_rate' => $slaComplianceRate,
+            ];
+
+            // 5. Tugas Overdue / Kritis Lintas Unit (Tunggakan yang butuh evaluasi MUP)
+            $criticalOverdueTasks = Task::with(['assignee', 'organizationUnit'])
+                ->where(function ($q) use ($today) {
+                    $q->where(function ($sub) use ($today) {
+                        $sub->whereNotIn('status', ['Resolved', 'Closed', 'Selesai'])->where('due_date', '<', $today);
+                    })->orWhereIn('status', ['Terlambat', 'Overdue']);
+                })
+                ->where(function ($q) {
+                    $q->whereNull('progress_percent')->orWhere('progress_percent', '<', 100);
+                })
+                ->orderBy('due_date', 'asc')
+                ->take(10)
+                ->get();
+
+            // 6. Riwayat Keputusan MUP & Status Eksekusi Tindak Lanjut
+            $recentMupDecisions = Decision::where('decision_level', 'MUP')
+                ->orWhere('decision_by', $user->id)
+                ->with(['issue.organizationUnit', 'decisionMaker', 'tasks.assignee'])
+                ->latest()
+                ->take(8)
+                ->get();
+
+            // 7. Agenda Rapat Koordinasi & Tinjauan Manajemen
+            $upcomingMeetings = Meeting::with('leader')
+                ->orderBy('meeting_date', 'desc')
+                ->take(5)
+                ->get();
+
+            // 8. Daftar user aktif untuk penugasan tindak lanjut cepat
+            $assignableUsers = User::with(['role', 'organizationUnit'])
+                ->where('is_active', true)
+                ->select('id', 'name', 'unit_id', 'role_id', 'position_id')
+                ->orderBy('name')
+                ->get();
         }
 
-        return \Inertia\Inertia::render('Dashboard/Index', [
+        return Inertia::render('Dashboard/Index', [
             'roleName' => $roleName,
             'kpiData' => $kpiData,
-            'manajemenTugas' => $manajemenTugas,
+            'manajemenTugas' => [
+                'siklus_aktif' => $siklus,
+                'minggu_berjalan' => $currentWeek,
+            ],
             'tasks' => $tasks,
             'issuesUnderReview' => $issuesUnderReview,
             'escalatedIssues' => $escalatedIssues,
             'criticalIssues' => $criticalIssues,
             'myTasks' => $myTasks,
             'myTaskStats' => $myTaskStats,
+            // Executive Data
+            'executiveStats' => $executiveStats,
+            'departmentMetrics' => $departmentMetrics,
+            'allActiveIssuesUnit' => $allActiveIssuesUnit,
+            'criticalOverdueTasks' => $criticalOverdueTasks,
+            'recentMupDecisions' => $recentMupDecisions,
+            'upcomingMeetings' => $upcomingMeetings,
+            'assignableUsers' => $assignableUsers,
         ]);
     }
 }

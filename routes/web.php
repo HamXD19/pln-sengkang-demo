@@ -21,6 +21,28 @@ Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// Unduh File Excel Daftar Akun Pegawai (Mendukung download langsung dengan header attachment resmi)
+Route::get('/download-akun-excel', function () {
+    $filePath = public_path('downloads/DAFTAR_AKUN_PEGAWAI_PLN_SENGKANG.xlsx');
+    if (!file_exists($filePath)) {
+        $filePath = base_path('DAFTAR_AKUN_PEGAWAI_PLN_SENGKANG.xlsx');
+    }
+    if (file_exists($filePath)) {
+        return response()->download($filePath, 'DAFTAR_AKUN_PEGAWAI_PLN_SENGKANG.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="DAFTAR_AKUN_PEGAWAI_PLN_SENGKANG.xlsx"',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    }
+    abort(404, 'File Excel tidak ditemukan.');
+})->name('download.akun.excel');
+
+Route::get('/download/akun-excel', function () {
+    return redirect()->route('download.akun.excel');
+});
+
 // Protected Routes
 Route::middleware(['auth'])->group(function () {
     // 1. Dashboard (Multi-Role: Staff, TL, Asman, MUP)
@@ -41,6 +63,7 @@ Route::middleware(['auth'])->group(function () {
 
     // 3. Modul Isu & Kendala (Panel 6, 7, 8 Mockup)
     Route::get('/issues', [IssueController::class, 'index'])->name('issues.index');
+    Route::get('/eskalasi', [IssueController::class, 'index'])->name('escalations.index');
     Route::get('/issues/create', [IssueController::class, 'create'])->name('issues.create');
     Route::post('/issues', [IssueController::class, 'store'])->name('issues.store');
     Route::get('/issues/{issue}', [IssueController::class, 'show'])->name('issues.show');
@@ -66,10 +89,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/rapat/{id}', [MeetingController::class, 'show'])->name('rapat.show');
     Route::get('/rapat/{id}/workspace', [MeetingController::class, 'workspace'])->name('rapat.workspace');
     Route::post('/rapat/{id}/tasks', [MeetingController::class, 'storeWorkspaceTask'])->name('rapat.tasks.store');
+    Route::post('/rapat/{id}/task', [MeetingController::class, 'storeWorkspaceTask']);
     Route::post('/rapat/{id}/finish', [MeetingController::class, 'finishMeeting'])->name('rapat.finish');
     Route::get('/rapat/{id}/cetak', [MeetingController::class, 'cetak'])->name('rapat.cetak');
     Route::post('/rapat/{id}/attach-issue', [MeetingController::class, 'attachIssue'])->name('rapat.attach_issue');
     Route::delete('/rapat/{id}/detach-issue/{issueId}', [MeetingController::class, 'detachIssue'])->name('rapat.detach_issue');
+    Route::post('/rapat/{id}/messages', [MeetingController::class, 'storeMessage'])->name('rapat.messages.store');
+    Route::post('/rapat/{id}/ping', [MeetingController::class, 'pingAttendance'])->name('rapat.ping');
 
     // 5. Modul Keputusan (Rekap Seluruh Keputusan Atasan)
     Route::get('/keputusan', [DecisionController::class, 'index'])->name('keputusan.index');
@@ -88,17 +114,27 @@ Route::middleware(['auth'])->group(function () {
     Route::match(['POST', 'PUT'], '/profil', [ProfileController::class, 'update'])->name('profile.update');
     Route::match(['POST', 'PUT'], '/profil/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
 
-    // 9. Modul Master Data (Dibatasi Khusus MUP & ADMIN)
-    Route::middleware(['role:MUP,ADMIN'])->group(function () {
+    // 9. Direktori Daftar Akun Pegawai (Tersedia untuk Seluruh Pegawai)
+    Route::get('/daftar-akun', [MasterDataController::class, 'daftarAkun'])->name('daftar_akun.index');
+
+    // 9. Modul Master Data (Dibatasi Khusus MUP, ADMIN & SUPER_ADMIN)
+    Route::middleware(['role:MUP,ADMIN,SUPER_ADMIN'])->group(function () {
         Route::get('/master-data', [MasterDataController::class, 'index'])->name('master.index');
         Route::post('/master-data/users', [MasterDataController::class, 'storeUser'])->name('master.users.store');
         Route::put('/master-data/users/{id}', [MasterDataController::class, 'updateUser'])->name('master.users.update');
+        Route::post('/master-data/users/{id}/reset-password', [MasterDataController::class, 'resetUserPassword'])->name('master.users.reset_password');
         Route::delete('/master-data/users/{id}', [MasterDataController::class, 'destroyUser'])->name('master.users.destroy');
 
         // Master Organisasi (Incumbent & Parent)
         Route::post('/master-data/hierarchies', [MasterDataController::class, 'storeHierarchy'])->name('master.hierarchies.store');
         Route::put('/master-data/hierarchies/{id}', [MasterDataController::class, 'updateHierarchy'])->name('master.hierarchies.update');
         Route::delete('/master-data/hierarchies/{id}', [MasterDataController::class, 'destroyHierarchy'])->name('master.hierarchies.destroy');
+
+        // Branding & Image Customization (Logo & Background Login)
+        Route::post('/master-data/branding/logo', [MasterDataController::class, 'updateLogo'])->name('master.branding.logo');
+        Route::post('/master-data/branding/background', [MasterDataController::class, 'updateLoginBackground'])->name('master.branding.background');
+        Route::post('/master-data/branding/reset-logo', [MasterDataController::class, 'resetLogo'])->name('master.branding.reset_logo');
+        Route::post('/master-data/branding/reset-background', [MasterDataController::class, 'resetLoginBackground'])->name('master.branding.reset_background');
 
         // Helper trigger storage:link khusus cPanel / Shared Hosting
         Route::get('/artisan-storage-link', function () {

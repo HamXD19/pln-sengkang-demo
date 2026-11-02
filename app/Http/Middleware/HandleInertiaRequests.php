@@ -50,8 +50,17 @@ class HandleInertiaRequests extends Middleware
                 'error'   => fn () => $request->session()->get('error'),
                 'info'    => fn () => $request->session()->get('info'),
                 'warning' => fn () => $request->session()->get('warning'),
+                'just_logged_in' => fn () => $request->session()->get('just_logged_in'),
             ],
             'appName' => config('app.name', 'PLN Nusantara Power UP Sengkang'),
+            'branding' => function () {
+                $logoPath = public_path('assets/bumn/logo-pln.png');
+                $bgPath = public_path('assets/bumn/bg-sengkang-hd.jpg');
+                return [
+                    'logo_url' => file_exists($logoPath) ? '/assets/bumn/logo-pln.png?v=' . filemtime($logoPath) : '/assets/bumn/logo-pln.png',
+                    'login_bg_url' => file_exists($bgPath) ? '/assets/bumn/bg-sengkang-hd.jpg?v=' . filemtime($bgPath) : '/assets/bumn/bg-sengkang-hd.jpg',
+                ];
+            },
         ];
     }
 }

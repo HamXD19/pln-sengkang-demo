@@ -64,8 +64,8 @@
         </button>
       </div>
 
-      <!-- Tabel Daftar Task -->
-      <div class="overflow-x-auto">
+      <!-- Desktop Table View: Tabel Daftar Task -->
+      <div class="hidden md:block overflow-x-auto">
         <table class="w-full text-left text-xs whitespace-nowrap">
           <thead class="bg-[#f8fafc] border-b border-gray-100 text-gray-600 font-bold uppercase tracking-wider text-[11px]">
             <tr>
@@ -197,7 +197,7 @@
                 <div class="max-w-xs mx-auto space-y-2">
                   <i class="fas fa-tasks text-3xl text-gray-300"></i>
                   <p class="text-xs font-semibold text-gray-500">Tidak ada data task yang cocok</p>
-                  <p class="text-[11px] text-gray-400">Silakan gunakan tombol "Tambah Task" untuk membuat pekerjaan baru.</p>
+                  <p class="text-[11px] text-gray-400">Silakan gunakan tombol "Tambah Task" untuk membuat task baru.</p>
                 </div>
               </td>
             </tr>
@@ -205,10 +205,128 @@
         </table>
       </div>
 
+      <!-- Native Mobile App Card Feed View: Tabel Daftar Task -->
+      <div class="md:hidden p-3 space-y-3 bg-slate-50/50">
+        <template v-if="tasks.data && tasks.data.length > 0">
+          <div 
+            v-for="task in tasks.data" 
+            :key="task.id" 
+            class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-2xs hover:shadow-xs transition active:scale-[0.99] space-y-3"
+          >
+            <!-- Header: Link/Mandiri badge & Status pill -->
+            <div class="flex items-center justify-between gap-2">
+              <Link 
+                v-if="task.issue" 
+                :href="`/issues/${task.issue.id}`" 
+                class="inline-flex items-center gap-1 font-mono text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md"
+              >
+                <i class="fas fa-link text-[9px]"></i>
+                <span>#{{ task.issue.issue_no }}</span>
+              </Link>
+              <span v-else class="text-[10px] text-slate-400 italic bg-slate-100 px-2 py-0.5 rounded">
+                Mandiri (Rutin)
+              </span>
+
+              <span :class="statusBadgeClass(task.calculated_status || task.status)" class="text-[10px]">
+                <i :class="statusIcon(task.calculated_status || task.status)" class="mr-1"></i>
+                {{ task.calculated_status || task.status }}
+              </span>
+            </div>
+
+            <!-- Title & Description -->
+            <div>
+              <h4 class="font-bold text-slate-800 text-sm leading-snug">{{ task.title }}</h4>
+              <p v-if="task.description" class="text-xs text-slate-500 mt-1 line-clamp-2">{{ task.description }}</p>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-400 font-bold text-[10px] uppercase">Kemajuan</span>
+                <span class="font-bold text-slate-700 font-mono">{{ task.progress_percent || 0 }}%</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div 
+                  :class="progressColor(task.calculated_status || task.status)" 
+                  class="h-2 rounded-full transition-all duration-300" 
+                  :style="{ width: (task.progress_percent || 0) + '%' }"
+                ></div>
+              </div>
+            </div>
+
+            <!-- PIC & Tenggat Waktu -->
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-full overflow-hidden bg-slate-200 shrink-0">
+                  <img 
+                    :src="task.assignee?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(task.assignee?.name || 'User')}&size=60`" 
+                    class="w-full h-full object-cover" 
+                  />
+                </div>
+                <div class="truncate">
+                  <span class="text-slate-400 block text-[9px] uppercase font-bold">PIC</span>
+                  <span class="font-bold text-slate-800 truncate block text-[11px]">{{ task.assignee?.name || 'Belum ada' }}</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-slate-400 block text-[9px] uppercase font-bold">Batas Waktu</span>
+                <span class="font-mono font-semibold text-slate-700 text-[11px] flex items-center justify-end gap-1 mt-0.5">
+                  <i class="far fa-calendar-alt text-slate-400 text-[10px]"></i>
+                  {{ task.due_date || '-' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Mobile Actions -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+              <a 
+                v-if="task.completion_attachment" 
+                :href="`/storage/${task.completion_attachment}`" 
+                target="_blank" 
+                class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-md"
+              >
+                <i class="fas fa-paperclip"></i> Bukti
+              </a>
+              <span v-else class="text-[10px] text-slate-400">Siklus W{{ task.week_number }}</span>
+
+              <div class="flex items-center gap-1.5 ml-auto">
+                <button 
+                  type="button" 
+                  @click="openProgressModal(task)" 
+                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-xs hover:bg-blue-700 active:scale-95 transition flex items-center gap-1 cursor-pointer"
+                >
+                  <i class="fas fa-sliders-h text-[10px]"></i> Progres
+                </button>
+                <button 
+                  type="button" 
+                  @click="openEditModal(task)" 
+                  class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition cursor-pointer" 
+                  title="Edit Task"
+                >
+                  <i class="fas fa-edit text-xs"></i>
+                </button>
+                <button 
+                  type="button" 
+                  @click="deleteTask(task)" 
+                  class="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer" 
+                  title="Hapus Task"
+                >
+                  <i class="fas fa-trash text-xs"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+        <div v-else class="text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">
+          <i class="fas fa-tasks text-3xl text-gray-300 block mb-2"></i>
+          Tidak ada data task yang cocok.
+        </div>
+      </div>
+
       <!-- Pagination -->
       <div v-if="tasks.links && tasks.links.length > 3" class="p-4 border-t border-gray-100 flex items-center justify-between">
         <p class="text-xs text-gray-500">
-          Menampilkan <span class="font-bold">{{ tasks.from || 0 }}</span> - <span class="font-bold">{{ tasks.to || 0 }}</span> dari <span class="font-bold">{{ tasks.total }}</span> pekerjaan
+          Menampilkan <span class="font-bold">{{ tasks.from || 0 }}</span> - <span class="font-bold">{{ tasks.to || 0 }}</span> dari <span class="font-bold">{{ tasks.total }}</span> task
         </p>
         <div class="flex items-center gap-1">
           <template v-for="(link, i) in tasks.links" :key="i">
@@ -253,11 +371,11 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-gray-700 mb-1">Deskripsi Pekerjaan</label>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Deskripsi Task</label>
             <textarea 
               v-model="createForm.description" 
               rows="3" 
-              placeholder="Jelaskan instruksi atau ruang lingkup pekerjaan..." 
+              placeholder="Jelaskan instruksi atau ruang lingkup task..." 
               class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500"
             ></textarea>
           </div>
@@ -296,8 +414,13 @@
 
           <div class="flex justify-end gap-2 pt-4 border-t border-gray-100">
             <button type="button" @click="showCreateModal = false" class="px-4 py-2 border border-gray-200 text-gray-600 rounded-md text-xs hover:bg-gray-50 cursor-pointer">Batal</button>
-            <button type="submit" :disabled="createForm.processing" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer">
-              {{ createForm.processing ? 'Menyimpan...' : 'Simpan Task' }}
+            <button 
+              type="submit" 
+              :disabled="createForm.processing" 
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <i v-if="createForm.processing" class="fas fa-spinner fa-spin text-xs"></i>
+              <span>{{ createForm.processing ? 'Menyimpan...' : 'Simpan Task' }}</span>
             </button>
           </div>
         </form>
@@ -309,7 +432,7 @@
       <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
         <div class="flex justify-between items-center pb-3 border-b border-gray-100 mb-4">
           <div>
-            <h3 class="text-sm font-bold text-gray-800">Update Progres Pekerjaan</h3>
+            <h3 class="text-sm font-bold text-gray-800">Update Progres Task</h3>
             <p class="text-[11px] text-gray-400 truncate max-w-xs">{{ activeTask?.title }}</p>
           </div>
           <button @click="showProgressModal = false" class="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer">&times;</button>
@@ -358,8 +481,13 @@
 
           <div class="flex justify-end gap-2 pt-4 border-t border-gray-100">
             <button type="button" @click="showProgressModal = false" class="px-4 py-2 border border-gray-200 text-gray-600 rounded-md text-xs hover:bg-gray-50 cursor-pointer">Batal</button>
-            <button type="submit" :disabled="progressForm.processing" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer">
-              {{ progressForm.processing ? 'Menyimpan...' : 'Perbarui Progres' }}
+            <button 
+              type="submit" 
+              :disabled="progressForm.processing" 
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <i v-if="progressForm.processing" class="fas fa-spinner fa-spin text-xs"></i>
+              <span>{{ progressForm.processing ? 'Menyimpan...' : 'Perbarui Progres' }}</span>
             </button>
           </div>
         </form>
@@ -381,7 +509,7 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-gray-700 mb-1">Deskripsi Pekerjaan</label>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Deskripsi Task</label>
             <textarea v-model="editForm.description" rows="3" class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500"></textarea>
           </div>
 
@@ -427,8 +555,13 @@
 
           <div class="flex justify-end gap-2 pt-4 border-t border-gray-100">
             <button type="button" @click="showEditModal = false" class="px-4 py-2 border border-gray-200 text-gray-600 rounded-md text-xs hover:bg-gray-50 cursor-pointer">Batal</button>
-            <button type="submit" :disabled="editForm.processing" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer">
-              {{ editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan' }}
+            <button 
+              type="submit" 
+              :disabled="editForm.processing" 
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <i v-if="editForm.processing" class="fas fa-spinner fa-spin text-xs"></i>
+              <span>{{ editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan' }}</span>
             </button>
           </div>
         </form>
@@ -504,6 +637,7 @@ function openCreateModal() {
 }
 
 function submitCreate() {
+  if (createForm.processing) return;
   createForm.post('/pekerjaan', {
     onSuccess: () => {
       showCreateModal.value = false;
@@ -530,7 +664,7 @@ function openProgressModal(task) {
 }
 
 function submitProgress() {
-  if (!activeTask.value) return;
+  if (!activeTask.value || progressForm.processing) return;
   progressForm.post(`/tasks/${activeTask.value.id}/progress`, {
     headers: { 'X-HTTP-Method-Override': 'PATCH' },
     onSuccess: () => {
@@ -565,7 +699,7 @@ function openEditModal(task) {
 }
 
 function submitEdit() {
-  if (!activeTask.value) return;
+  if (!activeTask.value || editForm.processing) return;
   editForm.post(`/pekerjaan/${activeTask.value.id}`, {
     headers: { 'X-HTTP-Method-Override': 'PUT' },
     onSuccess: () => {
@@ -576,9 +710,11 @@ function submitEdit() {
 }
 
 // ==================== DELETE ====================
+const isDeletingTask = ref(false);
 async function deleteTask(task) {
+  if (isDeletingTask.value) return;
   const confirmed = await confirm({
-    title: 'Hapus Pekerjaan',
+    title: 'Hapus Task',
     message: `Apakah Anda yakin ingin menghapus task "${task.title}"? Riwayat progres dan bukti penanganan terkait akan dihapus permanen.`,
     confirmText: 'Ya, Hapus Task',
     cancelText: 'Batal',
@@ -586,7 +722,12 @@ async function deleteTask(task) {
     icon: 'fas fa-trash-can',
   });
   if (confirmed) {
-    router.delete(`/pekerjaan/${task.id}`);
+    isDeletingTask.value = true;
+    router.delete(`/pekerjaan/${task.id}`, {
+      onFinish: () => {
+        isDeletingTask.value = false;
+      },
+    });
   }
 }
 

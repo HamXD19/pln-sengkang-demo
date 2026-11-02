@@ -25,7 +25,7 @@ class RoleMiddleware
 
         $allowedRoles = array_map('strtoupper', $roles);
 
-        if ($userRole === 'ADMIN' || in_array($userRole, $allowedRoles, true)) {
+        if (in_array($userRole, ['ADMIN', 'SUPER_ADMIN', 'SUPER ADMIN'], true) || in_array($userRole, $allowedRoles, true)) {
             return $next($request);
         }
 

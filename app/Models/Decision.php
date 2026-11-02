@@ -26,4 +26,9 @@ class Decision extends Model
     {
         return $this->hasMany(Task::class);
     }
+
+    public function meeting(): BelongsTo
+    {
+        return $this->belongsTo(Meeting::class);
+    }
 }

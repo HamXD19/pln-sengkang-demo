@@ -184,6 +184,11 @@ class TaskController extends Controller
 
         $msg = $task->issue_id ? "Task tindak lanjut untuk Eskalasi #{$task->issue->issue_no} berhasil ditambahkan." : "Task baru berhasil ditambahkan.";
 
+        // Otomatis ubah status isu menjadi 'In Progress' jika ditindaklanjuti dengan task
+        if ($task->issue_id) {
+            \App\Models\Issue::where('id', $task->issue_id)->where('status', 'Open')->update(['status' => 'In Progress']);
+        }
+
         if ($request->filled('redirect_to')) {
             return redirect($request->redirect_to)->with('success', $msg);
         }
@@ -237,6 +242,17 @@ class TaskController extends Controller
         }
 
         $task->update($updateData);
+
+        // Jika progres mencapai 100% dan terhubung ke issue, otomatis set isu menjadi 'Closed' jika semua task tuntas
+        if ($progress >= 100 && $task->issue_id) {
+            $hasIncompleteTasks = Task::where('issue_id', $task->issue_id)
+                ->where('id', '!=', $task->id)
+                ->where('progress_percent', '<', 100)
+                ->exists();
+            if (!$hasIncompleteTasks) {
+                \App\Models\Issue::where('id', $task->issue_id)->update(['status' => 'Closed']);
+            }
+        }
 
         $extraMsg = $request->hasFile('completion_attachment') ? " dan bukti penyelesaian berhasil diunggah." : ".";
         return back()->with('success', "Progres task '{$task->title}' berhasil diperbarui menjadi {$progress}%{$extraMsg}");
@@ -321,6 +337,17 @@ class TaskController extends Controller
     {
         $task = Task::findOrFail($id);
         $title = $task->title;
+
+        // Hapus file fisik bukti lampiran penyelesaian task dari hosting
+        if ($task->completion_attachment) {
+            if (Storage::disk('public')->exists($task->completion_attachment)) {
+                Storage::disk('public')->delete($task->completion_attachment);
+            }
+            if (file_exists(public_path('storage/' . $task->completion_attachment))) {
+                @unlink(public_path('storage/' . $task->completion_attachment));
+            }
+        }
+
         $task->delete();
 
         if ($request->filled('redirect_to')) {

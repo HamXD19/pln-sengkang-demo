@@ -82,13 +82,12 @@
           </div>
 
           <!-- Berkas Lampiran / Bukti Fisik -->
-          <div v-if="issue.attachment_url" class="p-4 bg-blue-50/50 border border-blue-200/80 rounded-xl">
-            <h4 class="text-xs font-bold text-blue-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <i class="fas fa-paperclip text-blue-600"></i> Lampiran Berkas / Bukti Fisik
-            </h4>
-            
-            <!-- Jika Berupa Foto / Gambar -->
-            <div v-if="issue.is_image_attachment" class="space-y-3">
+          <div v-if="issue.attachment_url || issue.document_url" class="space-y-3">
+            <!-- 1. Foto Bukti Lapangan -->
+            <div v-if="issue.attachment_url && issue.is_image_attachment" class="p-4 bg-blue-50/50 border border-blue-200/80 rounded-xl">
+              <h4 class="text-xs font-bold text-blue-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <i class="fas fa-camera text-blue-600"></i> Foto Bukti Lapangan
+              </h4>
               <div class="relative group max-w-sm rounded-lg overflow-hidden border border-gray-200 bg-white shadow-xs">
                 <img 
                   :src="issue.attachment_url" 
@@ -121,23 +120,28 @@
               </div>
             </div>
 
-            <!-- Jika Berupa Dokumen Lain (PDF, DOCX, dll) -->
-            <div v-else class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg max-w-md">
-              <div class="flex items-center gap-3">
-                <i class="fas fa-file-alt text-2xl text-blue-600"></i>
-                <div>
-                  <p class="text-xs font-bold text-gray-800">{{ issue.attachment_name }}</p>
-                  <p class="text-[10px] text-gray-400 font-mono">Dokumen Lampiran</p>
+            <!-- 2. Dokumen Teknis / Pendukung -->
+            <div v-if="issue.document_url || (issue.attachment_url && !issue.is_image_attachment)" class="p-4 bg-amber-50/40 border border-amber-200/80 rounded-xl">
+              <h4 class="text-xs font-bold text-amber-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <i class="fas fa-file-lines text-amber-600"></i> Dokumen Pendukung / Laporan Teknis
+              </h4>
+              <div class="flex items-center justify-between p-3 bg-white border border-amber-200 rounded-lg max-w-md shadow-2xs">
+                <div class="flex items-center gap-3">
+                  <i class="fas fa-file-pdf text-2xl text-rose-500"></i>
+                  <div>
+                    <p class="text-xs font-bold text-gray-800">{{ issue.document_name || issue.attachment_name }}</p>
+                    <p class="text-[10px] text-gray-400 font-mono">Dokumen Teknis Lapangan</p>
+                  </div>
                 </div>
+                <a 
+                  :href="issue.document_url || issue.attachment_url" 
+                  target="_blank" 
+                  download
+                  class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded text-xs font-bold flex items-center gap-1.5 transition shadow-xs"
+                >
+                  <i class="fas fa-download"></i> Unduh Dokumen
+                </a>
               </div>
-              <a 
-                :href="issue.attachment_url" 
-                target="_blank" 
-                download
-                class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold flex items-center gap-1.5 transition"
-              >
-                <i class="fas fa-download"></i> Buka / Unduh
-              </a>
             </div>
           </div>
 
@@ -494,14 +498,13 @@
           <!-- Tombol Aksi -->
           <div class="flex items-center gap-3 flex-wrap">
             <template v-if="canAct">
-              <!-- Tombol 1: Beri Keputusan -->
-              <button 
-                type="button" 
-                @click="showDecisionModal = true"
+              <!-- Tombol 1: Masuk Ruang Rapat untuk Mengambil Keputusan -->
+              <Link 
+                href="/rapat"
                 class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-2 cursor-pointer"
               >
-                <i class="fas fa-gavel"></i> Beri Keputusan (Level {{ currentLevel }})
-              </button>
+                <i class="fas fa-gavel"></i> Bahas & Ambil Keputusan di Ruang Rapat
+              </Link>
 
               <!-- Tombol 2: Eskalasi ke Atasan -->
               <button 
@@ -595,10 +598,11 @@
                 <button 
                   type="submit" 
                   :disabled="discussionForm.processing"
-                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
                 >
-                  <i class="fas fa-paper-plane text-[10px]"></i> 
-                  {{ discussionForm.processing ? 'Mengirim...' : 'Kirim Tanggapan' }}
+                  <i v-if="discussionForm.processing" class="fas fa-spinner fa-spin text-[10px]"></i>
+                  <i v-else class="fas fa-paper-plane text-[10px]"></i> 
+                  <span>{{ discussionForm.processing ? 'Mengirim...' : 'Kirim Tanggapan' }}</span>
                 </button>
               </div>
             </div>
@@ -699,9 +703,10 @@
             <button 
               type="submit" 
               :disabled="escalateForm.processing"
-              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed flex items-center gap-1.5"
             >
-              {{ escalateForm.processing ? 'Mengirim...' : 'Kirim Eskalasi' }}
+              <i v-if="escalateForm.processing" class="fas fa-spinner fa-spin text-xs"></i>
+              <span>{{ escalateForm.processing ? 'Mengirim...' : 'Kirim Eskalasi' }}</span>
             </button>
           </div>
         </form>
@@ -817,9 +822,10 @@
             <button 
               type="submit" 
               :disabled="decisionForm.processing"
-              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer"
+              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed flex items-center gap-1.5"
             >
-              {{ decisionForm.processing ? 'Menyimpan...' : 'Simpan Keputusan' }}
+              <i v-if="decisionForm.processing" class="fas fa-spinner fa-spin text-xs"></i>
+              <span>{{ decisionForm.processing ? 'Menyimpan...' : 'Simpan Keputusan' }}</span>
             </button>
           </div>
         </form>
@@ -845,42 +851,58 @@
             />
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">Tingkat Prioritas <span class="text-rose-500">*</span></label>
-              <select v-model="editForm.priority" class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500" required>
-                <option value="CRITICAL">Critical (Darurat)</option>
-                <option value="HIGH">High (Tinggi)</option>
-                <option value="MEDIUM">Medium (Sedang)</option>
-                <option value="LOW">Low (Rendah)</option>
-              </select>
-            </div>
 
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">Status</label>
-              <select v-model="editForm.status" class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500">
-                <option value="Open">Open</option>
-                <option value="Escalated">Escalated</option>
-                <option value="Under Review">Under Review</option>
-                <option value="Resolved">Resolved</option>
-                <option value="Closed">Closed</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-gray-700 mb-1">Target Penyelesaian</label>
-            <input type="date" v-model="editForm.due_date" class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500" />
-          </div>
 
           <div>
             <label class="block text-xs font-bold text-gray-700 mb-1">Deskripsi & Uraian Masalah <span class="text-rose-500">*</span></label>
             <textarea 
               v-model="editForm.description" 
-              rows="5" 
+              rows="4" 
               class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500 font-mono text-[11px]" 
               required
             ></textarea>
+          </div>
+
+          <!-- Update Foto Bukti -->
+          <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+            <label class="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <i class="fas fa-camera text-blue-600"></i> Perbarui Foto Bukti (Khusus Gambar: JPG, PNG, WEBP)
+            </label>
+            <div v-if="editForm.current_photo" class="p-2 bg-white border border-slate-200 rounded-lg text-xs flex items-center justify-between">
+              <span class="truncate text-slate-700 font-mono text-[11px]"><i class="fas fa-image text-blue-500 mr-1.5"></i>{{ editForm.current_photo }}</span>
+              <span class="text-[10px] text-slate-400">Foto saat ini</span>
+            </div>
+            <input 
+              type="file" 
+              accept="image/jpeg,image/png,image/webp,image/jpg"
+              @change="onEditPhotoSelected"
+              class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+            />
+            <div v-if="editPhotoError" class="p-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-[11px] font-semibold flex items-center gap-1.5">
+              <i class="fas fa-exclamation-circle text-rose-600 shrink-0"></i>
+              <span>{{ editPhotoError }}</span>
+            </div>
+          </div>
+
+          <!-- Update Dokumen Pendukung -->
+          <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+            <label class="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <i class="fas fa-file-lines text-amber-600"></i> Perbarui Dokumen Teknis (Khusus PDF, DOCX, XLSX)
+            </label>
+            <div v-if="editForm.current_doc" class="p-2 bg-white border border-slate-200 rounded-lg text-xs flex items-center justify-between">
+              <span class="truncate text-slate-700 font-mono text-[11px]"><i class="fas fa-file-pdf text-amber-600 mr-1.5"></i>{{ editForm.current_doc }}</span>
+              <span class="text-[10px] text-slate-400">Dokumen saat ini</span>
+            </div>
+            <input 
+              type="file" 
+              accept=".pdf,.doc,.docx,.xls,.xlsx"
+              @change="onEditDocSelected"
+              class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:bg-amber-50 file:text-amber-800 hover:file:bg-amber-100 cursor-pointer"
+            />
+            <div v-if="editDocError" class="p-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-[11px] font-semibold flex items-center gap-1.5">
+              <i class="fas fa-exclamation-circle text-rose-600 shrink-0"></i>
+              <span>{{ editDocError }}</span>
+            </div>
           </div>
 
           <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
@@ -893,10 +915,11 @@
             </button>
             <button 
               type="submit" 
-              :disabled="editForm.processing"
-              class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition disabled:opacity-50"
+              :disabled="editForm.processing || !!editPhotoError || !!editDocError"
+              class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed flex items-center gap-1.5"
             >
-              {{ editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan' }}
+              <i v-if="editForm.processing" class="fas fa-spinner fa-spin text-xs"></i>
+              <span>{{ editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan' }}</span>
             </button>
           </div>
         </form>
@@ -960,34 +983,115 @@ const showDecisionModal = ref(false);
 const showEditModal = ref(false);
 const previewImage = ref(null);
 
-// Edit Form
+// Edit Form States & File Validation
+const editPhotoError = ref('');
+const editDocError = ref('');
+
 const editForm = useForm({
   title: props.issue?.title || '',
-  description: props.issue?.description || '',
-  priority: props.issue?.priority || 'MEDIUM',
-  status: props.issue?.status || 'Open',
-  due_date: props.issue?.due_date ? String(props.issue.due_date).substring(0, 10) : '',
+  description: props.issue?.clean_description || props.issue?.description || '',
+  photo: null,
+  document: null,
+  current_photo: null,
+  current_doc: null,
 });
 
+function onEditPhotoSelected(event) {
+  editPhotoError.value = '';
+  const file = event.target.files[0];
+  if (!file) {
+    editForm.photo = null;
+    return;
+  }
+  const ext = file.name.split('.').pop().toLowerCase();
+  const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+  const allowedExts = ['jpg', 'jpeg', 'png', 'webp'];
+  const forbiddenDocExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt'];
+
+  if (forbiddenDocExts.includes(ext) || (!allowedImageTypes.includes(file.type) && !allowedExts.includes(ext))) {
+    editPhotoError.value = 'Berkas harus berupa gambar (JPG, JPEG, PNG, WEBP). Dokumen tidak diperbolehkan.';
+    event.target.value = '';
+    editForm.photo = null;
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    editPhotoError.value = 'Ukuran foto maksimal 10MB.';
+    event.target.value = '';
+    editForm.photo = null;
+    return;
+  }
+  editForm.photo = file;
+}
+
+function onEditDocSelected(event) {
+  editDocError.value = '';
+  const file = event.target.files[0];
+  if (!file) {
+    editForm.document = null;
+    return;
+  }
+  const ext = file.name.split('.').pop().toLowerCase();
+  const allowedDocExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx'];
+  const forbiddenImageExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'];
+
+  if (file.type.startsWith('image/') || forbiddenImageExts.includes(ext)) {
+    editDocError.value = 'Berkas harus berupa dokumen (PDF, DOC, DOCX, XLS, XLSX). Foto tidak diperbolehkan.';
+    event.target.value = '';
+    editForm.document = null;
+    return;
+  }
+  if (!allowedDocExts.includes(ext)) {
+    editDocError.value = 'Format dokumen tidak didukung.';
+    event.target.value = '';
+    editForm.document = null;
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    editDocError.value = 'Ukuran dokumen maksimal 10MB.';
+    event.target.value = '';
+    editForm.document = null;
+    return;
+  }
+  editForm.document = file;
+}
+
 function openEditModal() {
+  editPhotoError.value = '';
+  editDocError.value = '';
   editForm.title = props.issue?.title || '';
-  editForm.description = props.issue?.description || '';
-  editForm.priority = props.issue?.priority || 'MEDIUM';
-  editForm.status = props.issue?.status || 'Open';
-  editForm.due_date = props.issue?.due_date ? String(props.issue.due_date).substring(0, 10) : '';
+  editForm.description = props.issue?.clean_description || props.issue?.description || '';
+  editForm.current_photo = props.issue?.attachment_name || props.issue?.attachment || null;
+  editForm.current_doc = props.issue?.document_name || props.issue?.document || null;
+  editForm.photo = null;
+  editForm.document = null;
   showEditModal.value = true;
 }
 
 function submitEdit() {
-  editForm.put(`/issues/${props.issue.id}`, {
-    preserveScroll: true,
-    onSuccess: () => {
-      showEditModal.value = false;
-    },
-  });
+  if (editForm.processing) return;
+  if (editPhotoError.value || editDocError.value) {
+    return;
+  }
+  if (editForm.photo || editForm.document) {
+    editForm.transform((data) => ({ ...data, _method: 'put' })).post(`/issues/${props.issue.id}`, {
+      preserveScroll: true,
+      onSuccess: () => {
+        showEditModal.value = false;
+      },
+    });
+  } else {
+    editForm.put(`/issues/${props.issue.id}`, {
+      preserveScroll: true,
+      onSuccess: () => {
+        showEditModal.value = false;
+      },
+    });
+  }
 }
 
+const isDeletingIssue = ref(false);
 async function confirmDelete() {
+  if (isDeletingIssue.value) return;
   const confirmed = await confirm({
     title: 'Hapus Isu',
     message: `Apakah Anda yakin ingin menghapus issue #${props.issue.issue_no} "${props.issue.title}"? Seluruh riwayat eskalasi, diskusi, dan keputusan terkait akan ikut dihapus permanen.`,
@@ -997,7 +1101,12 @@ async function confirmDelete() {
     icon: 'fas fa-trash-can',
   });
   if (confirmed) {
-    router.delete(`/issues/${props.issue.id}`);
+    isDeletingIssue.value = true;
+    router.delete(`/issues/${props.issue.id}`, {
+      onFinish: () => {
+        isDeletingIssue.value = false;
+      },
+    });
   }
 }
 
@@ -1007,6 +1116,7 @@ const discussionForm = useForm({
 });
 
 function submitDiscussion() {
+  if (discussionForm.processing) return;
   discussionForm.post(`/issues/${props.issue.id}/discussions`, {
     preserveScroll: true,
     onSuccess: () => {
@@ -1020,6 +1130,7 @@ const escalateForm = useForm({
 });
 
 function submitEscalation() {
+  if (escalateForm.processing) return;
   escalateForm.put(`/issues/${props.issue.id}/escalate`, {
     preserveScroll: true,
     onSuccess: () => {
@@ -1044,6 +1155,7 @@ const decisionForm = useForm({
 });
 
 function submitDecision() {
+  if (decisionForm.processing) return;
   decisionForm.put(`/decisions/${props.issue.id}`, {
     preserveScroll: true,
     onSuccess: () => {
@@ -1088,16 +1200,16 @@ function priorityBadgeClass(p) {
 
 function statusBadgeClass(s) {
   const status = String(s || '').toLowerCase();
-  if (status.includes('closed') || status.includes('resolved')) {
+  if (status.includes('closed') || status.includes('selesai') || status.includes('resolved') || status.includes('decided')) {
     return 'badge bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded text-xs font-bold';
   }
-  if (status.includes('escalated')) {
-    return 'badge bg-orange-100 text-orange-800 border border-orange-200 px-2.5 py-1 rounded text-xs font-bold';
+  if (status.includes('progress') || status.includes('proses')) {
+    return 'badge bg-blue-100 text-blue-800 border border-blue-200 px-2.5 py-1 rounded text-xs font-bold';
   }
-  if (status.includes('review') || status.includes('decision') || status.includes('waiting')) {
-    return 'badge bg-red-100 text-red-800 border border-red-200 px-2.5 py-1 rounded text-xs font-bold';
+  if (status.includes('escalated') || status.includes('eskalasi')) {
+    return 'badge bg-purple-100 text-purple-800 border border-purple-200 px-2.5 py-1 rounded text-xs font-bold';
   }
-  return 'badge bg-blue-100 text-blue-800 border border-blue-200 px-2.5 py-1 rounded text-xs font-bold';
+  return 'badge bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-1 rounded text-xs font-bold';
 }
 
 function slaBadgeClass(issue) {
