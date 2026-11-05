@@ -1212,16 +1212,12 @@
                 />
               </div>
               <div>
-                <label class="block text-[11px] font-bold text-gray-700 mb-1">Tugaskan ke (PIC Pelaksana)</label>
-                <select 
-                  v-model="decisionForm.task_assignee_id"
-                  class="w-full text-xs border border-gray-200 rounded-lg p-2 outline-none focus:border-blue-500 bg-white"
-                >
-                  <option value="">-- Pilih Karyawan --</option>
-                  <option v-for="u in attendees" :key="u.id" :value="u.id">
-                    {{ u.name }} ({{ getUserRoleName(u) }})
-                  </option>
-                </select>
+                <UserSelect 
+                  v-model="decisionForm.task_assignee_id" 
+                  :users="attendees" 
+                  label="Tugaskan ke (PIC Pelaksana)" 
+                  placeholder="Ketik nama atau NID..." 
+                />
               </div>
               <div>
                 <label class="block text-[11px] font-bold text-gray-700 mb-1">Tenggat Selesai (Due Date)</label>
@@ -1352,19 +1348,15 @@
             />
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">Tugaskan ke (PIC) <span class="text-red-500">*</span></label>
-              <select 
+              <UserSelect 
                 v-model="addTaskForm.assigned_to" 
+                :users="attendees" 
+                label="Tugaskan ke (PIC)" 
+                placeholder="Ketik nama atau NID..."
                 required 
-                class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500 bg-white"
-              >
-                <option value="">-- Pilih Karyawan --</option>
-                <option v-for="u in attendees" :key="u.id" :value="u.id">
-                  {{ u.name }} ({{ getUserRoleName(u) }})
-                </option>
-              </select>
+              />
             </div>
             <div>
               <label class="block text-xs font-bold text-gray-700 mb-1">Target Selesai (Due Date) <span class="text-red-500">*</span></label>
@@ -1460,6 +1452,7 @@
 <script setup>
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
+import UserSelect from '@/Components/UserSelect.vue';
 import axios from 'axios';
 
 const props = defineProps({

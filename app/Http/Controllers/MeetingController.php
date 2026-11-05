@@ -12,6 +12,7 @@ use App\Models\MeetingMessage;
 use App\Models\OrganizationUnit;
 use App\Models\Task;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -212,6 +213,9 @@ class MeetingController extends Controller
             'userRole' => $userRole,
             'userUnitId' => $userUnitId,
             'userUnitName' => $user->organizationUnit?->name ?? 'UP Sengkang',
+            'currentWeek' => (int)now()->isoWeek(),
+            'currentYear' => (int)now()->year,
+            'availableWeeks' => $this->getAvailableWeeks(now()->year),
         ]);
     }
 
@@ -812,7 +816,7 @@ class MeetingController extends Controller
 
     public function cetak($id)
     {
-        $meeting = Meeting::with('leader')->find($id);
+        $meeting = Meeting::with(['leader.position', 'organizationUnit'])->find($id);
         if (!$meeting) {
             $meeting = (object)[
                 'id' => $id,
@@ -837,12 +841,224 @@ class MeetingController extends Controller
 
         $meetingTasks = Task::with('assignee')->whereHas('decision', fn($dq) => $dq->where('meeting_id', $meeting->id))->get();
         $tasks = $meetingTasks->isNotEmpty() ? $meetingTasks : Task::with('assignee')->latest()->take(15)->get();
-        $users = User::where('is_active', true)->take(12)->get();
+
+        // Peserta rapat spesifik
+        $attendedUserIds = MeetingAttendance::where('meeting_id', $meeting->id)->pluck('user_id')->toArray();
+        if ($meeting->leader_id) {
+            $attendedUserIds[] = $meeting->leader_id;
+        }
+        $attendedUserIds = array_unique(array_filter($attendedUserIds));
+
+        if (!empty($attendedUserIds)) {
+            $users = User::with('position')->whereIn('id', $attendedUserIds)->get();
+        } else {
+            $users = User::with('position')->where('is_active', true)->take(12)->get();
+        }
 
         $asman = User::whereHas('role', fn($q) => $q->where('name', 'ASMAN'))->first();
         $mup = User::whereHas('role', fn($q) => $q->where('name', 'MUP'))->first();
 
-        return Inertia::render('Meetings/Cetak', compact('meeting', 'issues', 'tasks', 'decisions', 'users', 'level', 'asman', 'mup'));
+        $week = $meeting->week_number ?? (int)Carbon::parse($meeting->meeting_date)->isoWeek();
+        $year = $meeting->year ?? (int)Carbon::parse($meeting->meeting_date)->year;
+        $availableWeeks = $this->getAvailableWeeks($year);
+
+        $startOfWeek = Carbon::now()->setISODate($year, $week)->startOfWeek();
+        $endOfWeek = Carbon::now()->setISODate($year, $week)->endOfWeek();
+
+        return Inertia::render('Meetings/Cetak', [
+            'isWeekly' => false,
+            'week' => $week,
+            'year' => $year,
+            'weekRange' => [
+                'start' => $startOfWeek->toDateString(),
+                'end' => $endOfWeek->toDateString(),
+                'startFormatted' => $startOfWeek->format('d M Y'),
+                'endFormatted' => $endOfWeek->format('d M Y'),
+            ],
+            'meeting' => $meeting,
+            'meetings' => collect([$meeting]),
+            'issues' => $issues,
+            'tasks' => $tasks,
+            'decisions' => $decisions,
+            'users' => $users,
+            'level' => $level,
+            'asman' => $asman,
+            'mup' => $mup,
+            'availableWeeks' => $availableWeeks,
+        ]);
+    }
+
+    public function cetakMingguan(Request $request)
+    {
+        $year = (int)$request->input('year', now()->year);
+        $week = (int)$request->input('week', now()->isoWeek());
+        $unitId = $request->input('unit_id', 'semua');
+
+        $startOfWeek = Carbon::now()->setISODate($year, $week)->startOfWeek();
+        $endOfWeek = Carbon::now()->setISODate($year, $week)->endOfWeek();
+
+        $meetingsQuery = Meeting::with(['leader.position', 'organizationUnit', 'issues', 'attendances.user.position'])
+            ->where(function($q) use ($week, $year, $startOfWeek, $endOfWeek) {
+                $q->where(function($sq) use ($week, $year) {
+                    $sq->where('week_number', $week)->where('year', $year);
+                })->orWhere(function($sq) use ($startOfWeek, $endOfWeek) {
+                    $sq->whereBetween('meeting_date', [$startOfWeek->toDateString(), $endOfWeek->toDateString()]);
+                });
+            });
+
+        if ($unitId && $unitId !== 'semua') {
+            $meetingsQuery->where('unit_id', $unitId);
+        }
+
+        $meetings = $meetingsQuery->orderBy('meeting_date')->orderBy('time_start')->get();
+        $meetingIds = $meetings->pluck('id')->toArray();
+
+        // Rekap Isu terkait minggu ini
+        $issues = Issue::with(['reporter', 'owner'])
+            ->where(function($iq) use ($meetingIds, $startOfWeek, $endOfWeek) {
+                if (!empty($meetingIds)) {
+                    $iq->whereHas('meetings', fn($mq) => $mq->whereIn('meetings.id', $meetingIds));
+                }
+                $iq->orWhereBetween('created_at', [$startOfWeek->toDateTimeString(), $endOfWeek->toDateTimeString()]);
+            })
+            ->distinct()
+            ->get();
+        if ($issues->isEmpty()) {
+            $issues = Issue::with(['reporter', 'owner'])->latest()->take(10)->get();
+        }
+
+        // Rekap Keputusan terkait minggu ini
+        $decisions = Decision::with(['decisionMaker', 'issue'])
+            ->where(function($dq) use ($meetingIds, $startOfWeek, $endOfWeek) {
+                if (!empty($meetingIds)) {
+                    $dq->whereIn('meeting_id', $meetingIds);
+                }
+                $dq->orWhereBetween('created_at', [$startOfWeek->toDateTimeString(), $endOfWeek->toDateTimeString()]);
+            })
+            ->latest()
+            ->get();
+        if ($decisions->isEmpty()) {
+            $decisions = Decision::with(['decisionMaker', 'issue'])->latest()->take(10)->get();
+        }
+
+        // Rekap Task terkait siklus minggu ini
+        $tasks = Task::with('assignee')
+            ->where(function($tq) use ($week, $year, $meetingIds, $startOfWeek, $endOfWeek) {
+                $tq->where(function($sq) use ($week, $year) {
+                    $sq->where('week_number', $week)->where('year', $year);
+                });
+                if (!empty($meetingIds)) {
+                    $tq->orWhereHas('decision', fn($dq) => $dq->whereIn('meeting_id', $meetingIds));
+                }
+                $tq->orWhereBetween('due_date', [$startOfWeek->toDateString(), $endOfWeek->toDateString()]);
+            })
+            ->distinct()
+            ->latest()
+            ->get();
+        if ($tasks->isEmpty()) {
+            $tasks = Task::with('assignee')->latest()->take(15)->get();
+        }
+
+        // Daftar Peserta dari Rapat-Rapat Minggu Ini
+        $attendedUserIds = !empty($meetingIds) 
+            ? MeetingAttendance::whereIn('meeting_id', $meetingIds)->pluck('user_id')->toArray() 
+            : [];
+        $meetingLeaderIds = $meetings->pluck('leader_id')->filter()->toArray();
+        $allUserIds = array_unique(array_filter(array_merge($attendedUserIds, $meetingLeaderIds)));
+
+        if (!empty($allUserIds)) {
+            $users = User::with('position')->whereIn('id', $allUserIds)->get();
+        } else {
+            $users = User::with('position')->where('is_active', true)->take(12)->get();
+        }
+
+        $mup = User::whereHas('role', fn($q) => $q->where('name', 'MUP'))->first();
+        $asman = User::whereHas('role', fn($q) => $q->where('name', 'ASMAN'))->first();
+        $leader = $mup ?: ($asman ?: auth()->user());
+
+        // Rangkuman Catatan Notulen dari seluruh sesi rapat minggu ini
+        $notesList = [];
+        foreach ($meetings as $m) {
+            if (!empty(trim($m->notes ?? ''))) {
+                $leaderName = $m->leader?->name ?? 'Pimpinan';
+                $notesList[] = "• [{$m->type} - {$leaderName}]:\n{$m->notes}";
+            }
+        }
+        $consolidatedNotes = !empty($notesList) 
+            ? implode("\n\n", $notesList) 
+            : "Rapat koordinasi mingguan siklus W{$week} telah diselenggarakan sesuai ketentuan evaluasi N-1 dan perencanaan N. Seluruh arahan teknis operasional, eskalasi kendala, dan komitmen penugasan terdokumentasi dalam risalah resmi.";
+
+        $consolidatedMeeting = (object)[
+            'id' => 'W' . $week,
+            'type' => 'Rapat Koordinasi Mingguan (Konsolidasi)',
+            'meeting_date' => $startOfWeek->toDateString(),
+            'time_start' => '08:30',
+            'time_end' => '15:30',
+            'location' => 'Ruang Rapat Utama & Ruang Rapat Bidang UP Sengkang',
+            'meeting_mode' => 'Hybrid (Offline & Zoom)',
+            'week_number' => $week,
+            'year' => $year,
+            'status' => 'Selesai',
+            'leader' => $leader,
+            'notes' => $consolidatedNotes,
+        ];
+
+        $availableWeeks = $this->getAvailableWeeks($year);
+
+        return Inertia::render('Meetings/Cetak', [
+            'isWeekly' => true,
+            'week' => $week,
+            'year' => $year,
+            'weekRange' => [
+                'start' => $startOfWeek->toDateString(),
+                'end' => $endOfWeek->toDateString(),
+                'startFormatted' => $startOfWeek->format('d M Y'),
+                'endFormatted' => $endOfWeek->format('d M Y'),
+            ],
+            'meetings' => $meetings,
+            'meeting' => $consolidatedMeeting,
+            'issues' => $issues,
+            'tasks' => $tasks,
+            'decisions' => $decisions,
+            'users' => $users,
+            'level' => 'MUP',
+            'asman' => $asman,
+            'mup' => $mup,
+            'availableWeeks' => $availableWeeks,
+        ]);
+    }
+
+    private function getAvailableWeeks($year)
+    {
+        $meetingWeeks = Meeting::whereNotNull('week_number')
+            ->where(function($q) use ($year) {
+                $q->where('year', $year)->orWhereNull('year');
+            })
+            ->pluck('week_number');
+
+        $taskWeeks = Task::whereNotNull('week_number')
+            ->where(function($q) use ($year) {
+                $q->where('year', $year)->orWhereNull('year');
+            })
+            ->pluck('week_number');
+
+        $allWeeks = $meetingWeeks->merge($taskWeeks)
+            ->push((int)now()->isoWeek())
+            ->map(fn($w) => (int)$w)
+            ->filter(fn($w) => $w > 0 && $w <= 53)
+            ->unique()
+            ->sortDesc()
+            ->values();
+
+        return $allWeeks->map(function($w) use ($year) {
+            $start = Carbon::now()->setISODate($year, $w)->startOfWeek();
+            $end = Carbon::now()->setISODate($year, $w)->endOfWeek();
+            return [
+                'week_number' => $w,
+                'year' => $year,
+                'label' => "Minggu Ke-{$w} ({$start->format('d M')} - {$end->format('d M Y')})",
+            ];
+        });
     }
 
     public function pingAttendance(Request $request, $id)

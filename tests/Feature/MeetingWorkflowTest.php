@@ -225,4 +225,35 @@ class MeetingWorkflowTest extends TestCase
             ->has('meeting')
         );
     }
+
+    /**
+     * Halaman cetak notulensi mingguan terpadu PLN dapat diakses dengan filter minggu.
+     */
+    public function test_cetak_notulensi_mingguan_page_loads_with_week_filter(): void
+    {
+        $currentWeek = (int)now()->isoWeek();
+        $currentYear = (int)now()->year;
+
+        $meeting = Meeting::create([
+            'type' => 'Rapat TL + Staf',
+            'meeting_date' => now()->toDateString(),
+            'status' => 'Selesai',
+            'leader_id' => $this->tl->id,
+            'unit_id' => $this->tl->unit_id,
+            'notes' => 'Notulen sesi TL seksi.',
+            'week_number' => $currentWeek,
+            'year' => $currentYear,
+        ]);
+
+        $response = $this->actingAs($this->asman)->get("/rapat/notulen-mingguan?week={$currentWeek}&year={$currentYear}");
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Meetings/Cetak')
+            ->where('isWeekly', true)
+            ->where('week', $currentWeek)
+            ->where('year', $currentYear)
+            ->has('meetings')
+            ->has('meeting')
+        );
+    }
 }

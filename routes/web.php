@@ -86,6 +86,7 @@ Route::middleware(['auth'])->group(function () {
     // 4. Modul Rapat Mingguan & Workspace (Panel 3, 4, 9 Mockup)
     Route::get('/rapat', [MeetingController::class, 'index'])->name('rapat.index');
     Route::post('/rapat', [MeetingController::class, 'store'])->name('rapat.store');
+    Route::get('/rapat/notulen-mingguan', [MeetingController::class, 'cetakMingguan'])->name('rapat.notulen_mingguan');
     Route::get('/rapat/{id}', [MeetingController::class, 'show'])->name('rapat.show');
     Route::get('/rapat/{id}/workspace', [MeetingController::class, 'workspace'])->name('rapat.workspace');
     Route::post('/rapat/{id}/tasks', [MeetingController::class, 'storeWorkspaceTask'])->name('rapat.tasks.store');

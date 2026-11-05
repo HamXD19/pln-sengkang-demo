@@ -1,18 +1,51 @@
 <template>
   <div class="bg-slate-100 py-10 px-4 min-h-screen font-sans text-gray-800">
-    <Head :title="`Risalah Rapat - ${meeting.type} - PLN NP UP Sengkang`" />
+    <Head :title="isWeekly ? `Notulen Mingguan W${week} - ${year} - PLN NP UP Sengkang` : `Risalah Rapat - ${meeting.type} - PLN NP UP Sengkang`" />
 
     <!-- FLOATING ACTIONS BAR (NO-PRINT) -->
     <div class="no-print max-w-4xl mx-auto mb-6 flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-xs border border-gray-200 gap-3">
-      <Link :href="`/rapat/${meeting.id}`" class="text-xs font-semibold text-gray-600 hover:text-blue-600 flex items-center gap-2">
-        <i class="fas fa-arrow-left"></i> Kembali ke Agenda Rapat
-      </Link>
       <div class="flex items-center gap-3">
-        <span class="text-xs text-gray-500 font-medium hidden sm:inline">Format: Kertas A4 Standar Risalah PLN</span>
+        <Link 
+          :href="isWeekly ? '/rapat' : `/rapat/${meeting.id}`" 
+          class="text-xs font-semibold text-gray-600 hover:text-blue-600 flex items-center gap-2"
+        >
+          <i class="fas fa-arrow-left"></i> 
+          <span>{{ isWeekly ? 'Kembali ke Daftar Rapat' : 'Kembali ke Agenda Rapat' }}</span>
+        </Link>
+
+        <!-- Pemilih Minggu Cepat (Quick Week Switcher) -->
+        <div v-if="availableWeeks && availableWeeks.length > 0" class="flex items-center gap-1.5 pl-3 border-l border-gray-200">
+          <label class="text-[11px] font-bold text-gray-500 hidden sm:inline">Pilih Siklus:</label>
+          <select 
+            :value="week" 
+            @change="goToWeek($event.target.value)"
+            class="text-xs border border-blue-200 bg-blue-50/50 hover:bg-blue-50 text-blue-900 rounded-lg px-2.5 py-1.5 font-bold outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+          >
+            <option v-for="w in availableWeeks" :key="w.week_number" :value="w.week_number">
+              {{ w.label }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Switcher Mode Sesi vs Mingguan -->
+        <Link 
+          v-if="!isWeekly"
+          :href="`/rapat/notulen-mingguan?week=${week}&year=${year}`" 
+          class="text-xs font-bold text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 transition flex items-center gap-1.5"
+          title="Buka rekap seluruh sesi minggu ini"
+        >
+          <i class="fas fa-layer-group text-[11px]"></i> Lihat Notulen Mingguan (W{{ week }})
+        </Link>
+        <span v-else class="text-[11px] font-bold bg-blue-100 text-blue-800 px-2.5 py-1 rounded-md border border-blue-200">
+          Mode Notulen Terpadu Per Minggu
+        </span>
+
         <button 
           type="button"
           @click="doPrint" 
-          class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-md transition flex items-center gap-2 cursor-pointer"
+          class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-md transition flex items-center gap-2 cursor-pointer active:scale-95"
         >
           <i class="fas fa-print"></i> Cetak / Ekspor PDF
         </button>
@@ -38,7 +71,7 @@
           <div class="text-right">
             <span class="text-[9px] font-mono text-gray-400 block uppercase tracking-wider">Nomor Risalah Rapat</span>
             <span class="text-xs font-mono font-bold text-gray-900 bg-slate-50 px-2.5 py-1 rounded border border-gray-200 inline-block mt-0.5">
-              RIS-SKG/{{ formatYear(meeting.meeting_date) }}/W{{ meeting.week_number || 40 }}/00{{ meeting.id }}
+              RIS-SKG/{{ year || formatYear(meeting.meeting_date) }}/W{{ week || meeting.week_number || 40 }}/{{ isWeekly ? 'REKAP-MINGGUAN' : `00${meeting.id}` }}
             </span>
             <span class="text-[9px] text-emerald-700 font-semibold block mt-1">Status: Terverifikasi Sistem</span>
           </div>
@@ -48,12 +81,54 @@
       <!-- JUDUL RISALAH -->
       <div class="text-center mb-6">
         <h2 class="text-sm font-extrabold uppercase underline tracking-wider text-gray-900">NOTULEN & RISALAH RAPAT KOORDINASI MINGGUAN</h2>
-        <p class="text-xs font-bold text-blue-700 mt-1 uppercase">{{ meeting.type }}</p>
-        <p class="text-[11px] text-gray-500">Siklus Mingguan: Minggu Ke-{{ meeting.week_number || 40 }} Tahun {{ meeting.year || 2026 }}</p>
+        <p class="text-xs font-bold text-blue-700 mt-1 uppercase">
+          {{ isWeekly ? `KONSOLIDASI SELURUH SESI KOORDINASI SIKLUS MINGGU KE-${week} TAHUN ${year}` : meeting.type }}
+        </p>
+        <p class="text-[11px] text-gray-500">
+          {{ isWeekly && weekRange ? `Periode Siklus: ${weekRange.startFormatted} s/d ${weekRange.endFormatted}` : `Siklus Mingguan: Minggu Ke-${meeting.week_number || week || 40} Tahun ${meeting.year || year || 2026}` }}
+        </p>
       </div>
 
-      <!-- INFORMASI PELAKSANAAN RAPAT -->
-      <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+      <!-- KONDISI A: INFORMASI SESI RAPAT JIKA MODE MINGGUAN (DAFTAR PERTEMUAN) -->
+      <div v-if="isWeekly" class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+        <h3 class="font-bold text-gray-900 text-xs uppercase mb-2 flex items-center gap-1.5">
+          <i class="far fa-calendar-check text-blue-600"></i> Rekapitulasi Sesi Rapat Terlaksana (Minggu Ke-{{ week }})
+        </h3>
+        <table class="w-full text-xs border border-gray-300 bg-white">
+          <thead class="bg-slate-100 border-b border-gray-300 font-bold text-gray-700">
+            <tr>
+              <th class="p-2 border-r border-gray-300 w-8 text-center">No</th>
+              <th class="p-2 border-r border-gray-300 text-left">Forum / Jenis Rapat</th>
+              <th class="p-2 border-r border-gray-300 text-left">Hari & Tanggal</th>
+              <th class="p-2 border-r border-gray-300 text-left">Pimpinan Sesi</th>
+              <th class="p-2 border-r border-gray-300 text-left">Tempat / Mode</th>
+              <th class="p-2 text-center w-24">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 text-gray-700">
+            <template v-if="meetings && meetings.length > 0">
+              <tr v-for="(m, mIdx) in meetings" :key="m.id || mIdx">
+                <td class="p-2 border-r border-gray-200 text-center font-mono">{{ mIdx + 1 }}</td>
+                <td class="p-2 border-r border-gray-200 font-bold text-blue-900">{{ m.type }}</td>
+                <td class="p-2 border-r border-gray-200">{{ formatDateLong(m.meeting_date) }} ({{ m.time_start || '08:30' }} - {{ m.time_end || '10:00' }} WITA)</td>
+                <td class="p-2 border-r border-gray-200 font-medium">{{ m.leader?.name || 'Pimpinan Unit' }}</td>
+                <td class="p-2 border-r border-gray-200">{{ m.location || 'Ruang Rapat UP Sengkang' }} ({{ m.meeting_mode || 'Offline' }})</td>
+                <td class="p-2 text-center font-bold">
+                  <span class="px-2 py-0.5 rounded text-[10px]" :class="m.status === 'Selesai' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'">
+                    {{ m.status || 'Selesai' }}
+                  </span>
+                </td>
+              </tr>
+            </template>
+            <tr v-else>
+              <td colspan="6" class="p-3 text-center text-gray-400 italic">Tidak ada agenda rapat terjadwal pada minggu ini.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- KONDISI B: INFORMASI PELAKSANAAN RAPAT TUNGGAL (MODE SESI BIASA) -->
+      <div v-else class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
         <table class="w-full text-xs">
           <tbody>
             <tr>
@@ -84,10 +159,11 @@
         </table>
       </div>
 
-      <!-- CATATAN & KESIMPULAN RAPAT -->
+      <!-- CATATAN & KESIMPULAN RAPAT (ARAHAN POKOK) -->
       <div v-if="meeting.notes" class="mb-6 bg-blue-50/70 p-4 rounded-lg border border-blue-200">
         <h3 class="font-bold text-blue-950 text-xs uppercase mb-1 flex items-center gap-1.5">
-          <i class="fas fa-quote-left text-blue-600"></i> Arahan Pokok & Kesimpulan Pimpinan:
+          <i class="fas fa-quote-left text-blue-600"></i> 
+          <span>{{ isWeekly ? 'Ringkasan Arahan Pokok & Kesimpulan Pimpinan Mingguan:' : 'Arahan Pokok & Kesimpulan Pimpinan:' }}</span>
         </h3>
         <p class="text-xs text-blue-900 leading-relaxed font-normal whitespace-pre-line">{{ meeting.notes }}</p>
       </div>
@@ -174,7 +250,7 @@
         </table>
       </div>
 
-      <!-- IV. RENCANA TINDAK LANJUT -->
+      <!-- IV. RENCANA TINDAK LANJUT TASK -->
       <div class="mb-6">
         <h3 class="font-bold text-gray-900 text-xs uppercase mb-2 border-b border-gray-200 pb-1 flex items-center gap-1.5">
           <i class="fas fa-tasks text-gray-500"></i> IV. Rencana Tindak Lanjut Task (Action Items)
@@ -191,7 +267,7 @@
           </thead>
           <tbody class="divide-y divide-gray-200 text-gray-700">
             <template v-if="tasks && tasks.length > 0">
-              <tr v-for="(t, idx) in tasks.slice(0, 8)" :key="t.id">
+              <tr v-for="(t, idx) in tasks" :key="t.id">
                 <td class="p-2 border-r border-gray-200 text-center font-mono">{{ idx + 1 }}</td>
                 <td class="p-2 border-r border-gray-200 font-medium">
                   {{ t.title }}
@@ -219,12 +295,12 @@
           <i class="fas fa-users text-gray-500"></i> V. Presensi & Daftar Hadir Peserta Koordinasi
         </h3>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
-          <div v-for="u in users.slice(0, 9)" :key="u.id" class="p-2 bg-slate-50 border border-gray-200 rounded flex items-center justify-between">
-            <div>
-              <p class="font-bold text-gray-800">{{ u.name }}</p>
-              <p class="text-[9px] text-gray-500">{{ u.position?.name || 'Staf Pelaksana' }}</p>
+          <div v-for="u in users" :key="u.id" class="p-2 bg-slate-50 border border-gray-200 rounded flex items-center justify-between">
+            <div class="truncate mr-1">
+              <p class="font-bold text-gray-800 truncate">{{ u.name }}</p>
+              <p class="text-[9px] text-gray-500 truncate">{{ u.position?.name || u.role?.name || 'Staf Pelaksana' }}</p>
             </div>
-            <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+            <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded shrink-0">
               Hadir
             </span>
           </div>
@@ -262,16 +338,16 @@
           </div>
 
           <!-- Tanda Tangan Pejabat Pengesah -->
-          <div class="text-right sm:text-center w-full sm:w-60">
+          <div class="text-right sm:text-center w-full sm:w-64">
             <p class="font-bold text-gray-700 mb-14">
               Sengkang, {{ formatDateLong(meeting.meeting_date) }}<br>
-              <span class="font-normal text-gray-500">Pimpinan Rapat Koordinasi,</span>
+              <span class="font-normal text-gray-500">{{ isWeekly ? 'Pimpinan Rapat Koordinasi Mingguan,' : 'Pimpinan Rapat Koordinasi,' }}</span>
             </p>
             <p class="font-bold text-gray-900 underline uppercase tracking-wide">
-              {{ meeting.leader?.name || (asman?.name || 'Pimpinan Unit') }}
+              {{ meeting.leader?.name || (mup?.name || (asman?.name || 'Pimpinan Unit')) }}
             </p>
             <p class="text-gray-500 text-[10px] font-mono">
-              NID: {{ meeting.leader?.employee_no || '9216281ZX' }} | {{ meeting.leader?.position?.name || 'Team Leader / Asman' }}
+              NID: {{ meeting.leader?.employee_no || '9216281ZX' }} | {{ meeting.leader?.position?.name || 'Manager Unit Pelaksana / Asman' }}
             </p>
           </div>
 
@@ -284,10 +360,11 @@
 
 <script setup>
 import { onMounted } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   meeting: Object,
+  meetings: Array,
   issues: Array,
   tasks: Array,
   decisions: Array,
@@ -295,10 +372,25 @@ const props = defineProps({
   level: String,
   asman: Object,
   mup: Object,
+  isWeekly: {
+    type: Boolean,
+    default: false,
+  },
+  week: [Number, String],
+  year: [Number, String],
+  weekRange: Object,
+  availableWeeks: Array,
 });
 
 function doPrint() {
   window.print();
+}
+
+function goToWeek(selectedWeek) {
+  router.get('/rapat/notulen-mingguan', {
+    week: selectedWeek,
+    year: props.year || new Date().getFullYear(),
+  });
 }
 
 function formatYear(dateStr) {

@@ -380,13 +380,15 @@
             ></textarea>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">PIC Pelaksana <span class="text-rose-500">*</span></label>
-              <select v-model="createForm.assigned_to" class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500" required>
-                <option value="">Pilih Pegawai...</option>
-                <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }} ({{ u.employee_no || '-' }})</option>
-              </select>
+              <UserSelect 
+                v-model="createForm.assigned_to" 
+                :users="users" 
+                label="PIC Pelaksana" 
+                placeholder="Ketik nama, NID, atau jabatan PIC..."
+                required 
+              />
             </div>
 
             <div>
@@ -513,12 +515,15 @@
             <textarea v-model="editForm.description" rows="3" class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500"></textarea>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">PIC Pelaksana <span class="text-rose-500">*</span></label>
-              <select v-model="editForm.assigned_to" class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500" required>
-                <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
-              </select>
+              <UserSelect 
+                v-model="editForm.assigned_to" 
+                :users="users" 
+                label="PIC Pelaksana" 
+                placeholder="Ketik nama, NID, atau jabatan PIC..."
+                required 
+              />
             </div>
 
             <div>
@@ -575,6 +580,7 @@
 import { ref, computed } from 'vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import UserSelect from '@/Components/UserSelect.vue';
 import { useConfirm } from '@/Composables/useConfirm';
 
 const { confirm } = useConfirm();

@@ -17,14 +17,27 @@
             Forum terpadu evaluasi N-1, perencanaan N, dan pembahasan isu khusus per bidang sesuai jenjang komando (BSD Section 2 & 3).
           </p>
         </div>
-        <button 
-          v-if="userRole !== 'STAFF'"
-          type="button" 
-          @click="openCreateModal()"
-          class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95"
-        >
-          <i class="fas fa-plus"></i> Buat Agenda Rapat
-        </button>
+        <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          <!-- Tombol Cetak Notulen Per Minggu -->
+          <button 
+            type="button" 
+            @click="showWeeklyModal = true"
+            class="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95"
+            title="Cetak risalah notulensi per minggu"
+          >
+            <i class="fas fa-print text-blue-600"></i> Cetak Notulen Per Minggu
+          </button>
+
+          <!-- Tombol Buat Agenda Rapat -->
+          <button 
+            v-if="userRole !== 'STAFF'"
+            type="button" 
+            @click="openCreateModal()"
+            class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95"
+          >
+            <i class="fas fa-plus"></i> Buat Agenda Rapat
+          </button>
+        </div>
       </div>
 
       <!-- Banner Siklus Mingguan Baku PLN UP Sengkang -->
@@ -703,11 +716,84 @@
       </div>
     </div>
 
+    <!-- ==================== MODAL CETAK NOTULEN PER MINGGU ==================== -->
+    <div v-if="showWeeklyModal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100 mb-4">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-print text-blue-600 text-base"></i>
+            <h3 class="text-sm font-bold text-gray-800">Cetak Notulen Per Minggu</h3>
+          </div>
+          <button @click="showWeeklyModal = false" class="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer">&times;</button>
+        </div>
+
+        <div class="space-y-4">
+          <p class="text-xs text-gray-600">
+            Sistem akan mengonsolidasi seluruh sesi rapat koordinasi (TL+Staf, Asman+TL, RTM), rekap kendala eskalasi, putusan, dan task tindak lanjut ke dalam <b>format resmi risalah notulen PLN UP Sengkang</b>.
+          </p>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Pilih Siklus Minggu (Week)</label>
+            <select 
+              v-model="selectedWeeklyWeek" 
+              class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500 bg-white font-semibold"
+            >
+              <option v-for="w in (availableWeeks && availableWeeks.length > 0 ? availableWeeks : fallbackWeeks)" :key="w.week_number" :value="w.week_number">
+                {{ w.label }}
+              </option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Tahun Anggaran</label>
+            <select 
+              v-model="selectedWeeklyYear" 
+              class="w-full text-xs border border-gray-200 rounded-lg p-2.5 outline-none focus:border-blue-500 bg-white font-semibold"
+            >
+              <option :value="2026">2026</option>
+              <option :value="2025">2025</option>
+            </select>
+          </div>
+
+          <div class="bg-blue-50/70 border border-blue-200 p-3 rounded-xl flex items-center justify-between text-xs">
+            <div>
+              <span class="text-blue-900 font-bold block">Minggu Berjalan (Saat Ini)</span>
+              <span class="text-blue-700 text-[11px]">Siklus W{{ currentWeek }} Tahun {{ currentYear }}</span>
+            </div>
+            <button 
+              type="button" 
+              @click="openWeeklyNotulen(currentWeek, currentYear)"
+              class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-bold shadow-2xs transition cursor-pointer"
+            >
+              Langsung Cetak W{{ currentWeek }}
+            </button>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+            <button 
+              type="button" 
+              @click="showWeeklyModal = false" 
+              class="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50 font-semibold cursor-pointer"
+            >
+              Tutup
+            </button>
+            <button 
+              type="button" 
+              @click="openWeeklyNotulen()"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <i class="fas fa-file-invoice"></i> Buka / Cetak Notulen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
@@ -747,6 +833,18 @@ const props = defineProps({
     type: String,
     default: 'UP Sengkang',
   },
+  currentWeek: {
+    type: Number,
+    default: 45,
+  },
+  currentYear: {
+    type: Number,
+    default: 2026,
+  },
+  availableWeeks: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const page = usePage();
@@ -757,6 +855,29 @@ const filterUnitId = ref(props.selectedUnitId || 'semua');
 const filterType = ref(props.selectedType || 'semua');
 
 const showCreateModal = ref(false);
+const showWeeklyModal = ref(false);
+const selectedWeeklyWeek = ref(props.currentWeek || 45);
+const selectedWeeklyYear = ref(props.currentYear || 2026);
+
+const fallbackWeeks = computed(() => {
+  const list = [];
+  const curr = props.currentWeek || 45;
+  for (let i = curr; i >= Math.max(1, curr - 6); i--) {
+    list.push({
+      week_number: i,
+      year: props.currentYear || 2026,
+      label: `Minggu Ke-${i} (Tahun ${props.currentYear || 2026})`,
+    });
+  }
+  return list;
+});
+
+function openWeeklyNotulen(targetWeek, targetYear) {
+  const w = targetWeek || selectedWeeklyWeek.value;
+  const y = targetYear || selectedWeeklyYear.value;
+  showWeeklyModal.value = false;
+  window.open(`/rapat/notulen-mingguan?week=${w}&year=${y}`, '_blank');
+}
 
 // Perhitungan Siklus Rapat Baku PLN UP Sengkang:
 // 1. Rapat TL + Staf: Senin Pagi (08:30 - 10:00 WITA)

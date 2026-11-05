@@ -24,6 +24,15 @@
             <option value="semua">Semua Data</option>
           </select>
 
+          <a 
+            href="/rapat/notulen-mingguan" 
+            target="_blank"
+            class="px-4 py-2 border border-blue-200 bg-blue-50/70 hover:bg-blue-100/80 text-blue-700 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs"
+            title="Cetak format resmi notulen per minggu"
+          >
+            <i class="fas fa-file-invoice text-blue-600"></i> Notulen Mingguan
+          </a>
+
           <button 
             type="button" 
             @click="printReport"

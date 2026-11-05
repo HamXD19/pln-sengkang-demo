@@ -776,16 +776,12 @@
             <div v-if="decisionForm.create_task" class="space-y-2 pt-1 border-t border-blue-200/60">
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <label class="block text-[11px] font-bold text-blue-900 mb-0.5">Tugaskan ke (PIC Pelaksana)</label>
-                  <select 
+                  <UserSelect 
                     v-model="decisionForm.task_assignee_id" 
-                    class="w-full text-xs border border-blue-200 rounded p-1.5 bg-white"
-                  >
-                    <option value="">-- Pilih Karyawan PIC --</option>
-                    <option v-for="u in users" :key="u.id" :value="u.id">
-                      {{ u.name }} ({{ u.employee_no || 'NID' }}) - {{ u.role?.name || '' }}
-                    </option>
-                  </select>
+                    :users="users" 
+                    label="Tugaskan ke (PIC Pelaksana)" 
+                    placeholder="Ketik nama atau NID..." 
+                  />
                 </div>
                 <div>
                   <label class="block text-[11px] font-bold text-blue-900 mb-0.5">Target Selesai (Due Date)</label>
@@ -954,6 +950,7 @@
 import { ref, computed } from 'vue';
 import { router, Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import UserSelect from '@/Components/UserSelect.vue';
 import { useConfirm } from '@/Composables/useConfirm';
 
 const { confirm } = useConfirm();

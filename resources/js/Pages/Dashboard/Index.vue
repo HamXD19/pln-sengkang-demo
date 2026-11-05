@@ -1396,16 +1396,12 @@
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label class="block text-[11px] font-bold text-blue-900 mb-1">Tugaskan Kepada (PIC)</label>
-                <select 
+                <UserSelect 
                   v-model="decisionForm.task_assignee_id" 
-                  class="w-full text-xs px-2.5 py-1.5 rounded border border-blue-200 bg-white focus:outline-none focus:border-blue-500 text-gray-800"
-                >
-                  <option value="">Pilih Personil PIC...</option>
-                  <option v-for="u in assignableUsers" :key="u.id" :value="u.id">
-                    {{ u.name }} ({{ u.role?.name || '-' }})
-                  </option>
-                </select>
+                  :users="assignableUsers" 
+                  label="Tugaskan Kepada (PIC)" 
+                  placeholder="Ketik nama atau NID..." 
+                />
               </div>
 
               <div>
@@ -1554,6 +1550,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { router, Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import UserSelect from '@/Components/UserSelect.vue';
 import { useToast } from '@/Composables/useToast';
 
 const page = usePage();
