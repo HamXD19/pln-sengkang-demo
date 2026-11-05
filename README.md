@@ -3,24 +3,27 @@
 
 [![Laravel Version](https://img.shields.io/badge/Laravel-12.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com)
 [![PHP Version](https://img.shields.io/badge/PHP-%3E%3D8.2-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
+[![Database](https://img.shields.io/badge/Database-Oracle_19c_/_21c_/_23c-F80000?style=for-the-badge&logo=oracle&logoColor=white)](https://www.oracle.com/database/)
 [![Vue Version](https://img.shields.io/badge/Vue.js-3.5-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white)](https://vuejs.org)
 [![Inertia.js](https://img.shields.io/badge/Inertia.js-3.x-9553E9?style=for-the-badge&logo=inertia&logoColor=white)](https://inertiajs.com)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.x-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 
 Aplikasi berbasis web untuk standardisasi siklus rapat koordinasi mingguan, evaluasi pekerjaan backlog ($N-1$ & $N$), eskalasi isu operasional berjenjang (Staf $\rightarrow$ TL $\rightarrow$ ASMAN $\rightarrow$ MUP), dan pembuatan notulensi resmi otomatis di lingkungan PT PLN Nusantara Power Unit Pelaksana Pengendalian Pembangkitan Sengkang.
 
+Aplikasi ini menggunakan basis data kelas enterprise **Oracle Database** (didukung oleh package `yajra/laravel-oci8` dan ekstensi PHP `OCI8`).
+
 ---
 
 ## 📋 Daftar Isi
 1. [Fitur Utama](#-fitur-utama)
-2. [Kebutuhan Server (Server Requirements)](#-kebutuhan-server-server-requirements)
-3. [Panduan Pemasangan di Hosting](#-panduan-pemasangan-di-hosting)
-   - [Opsi 1: Shared Hosting / cPanel (Rekomendasi Pemula & Praktis)](#opsi-1-shared-hosting--cpanel)
-   - [Opsi 2: VPS (Ubuntu/Debian dengan Nginx / Apache)](#opsi-2-vps-virtual-private-server)
-   - [Opsi 3: Serverless / Cloud (Vercel)](#opsi-3-serverless--cloud-vercel)
-4. [Instalasi di Lingkungan Lokal (Localhost Development)](#-instalasi-di-lingkungan-lokal-localhost-development)
+2. [Spesifikasi & Kebutuhan Server Oracle](#-spesifikasi--kebutuhan-server-oracle)
+3. [Panduan Pemasangan & Deployment Server](#-panduan-pemasangan--deployment-server)
+   - [Opsi 1: VPS / Dedicated / On-Premise Server PLN (Rekomendasi Utama)](#opsi-1-vps--dedicated--on-premise-server-pln-rekomendasi-resmi)
+   - [Opsi 2: Docker Container (Oracle Database 23c Free + Web App)](#opsi-2-docker-container-oracle-23c-free)
+   - [Opsi 3: Shared Hosting / cPanel (Dengan Remote Oracle Connection)](#opsi-3-shared-hosting--cpanel-koneksi-oracle-remote)
+4. [Instalasi di Komputer Lokal (Localhost Development)](#-instalasi-di-komputer-lokal-localhost-development)
 5. [Struktur Pengguna & Akun Default](#-struktur-pengguna--akun-default)
-6. [Pemecahan Masalah (Troubleshooting)](#-pemecahan-masalah-troubleshooting)
+6. [Pemecahan Masalah Khusus Oracle (Troubleshooting)](#-pemecahan-masalah-khusus-oracle-troubleshooting)
 
 ---
 
@@ -32,208 +35,91 @@ Aplikasi berbasis web untuk standardisasi siklus rapat koordinasi mingguan, eval
   - *Selasa Pagi:* Rapat Tinjauan Manajemen (RTM) bersama Manajer Unit Pelaksana (MUP).
 - **Manajemen Isu Lapangan & Eskalasi Berjenjang:** Jalur formal penanganan kendala dari Staf hingga MUP disertai batas SLA dan status evaluasi.
 - **Backlog Pekerjaan Otomatis ($N-1$ & $N$):** Pekerjaan minggu lalu yang tertunda otomatis tercatat untuk dievaluasi pada rapat minggu berjalan.
-- **Notulensi Rapat & Cetak PDF:** Auto-generate notulensi dan berita acara resmi rapat siap cetak atau ekspor.
+- **Notulensi Rapat & Cetak PDF (Per Sesi & Per Minggu):** Auto-generate notulensi dan berita acara resmi rapat siap cetak atau ekspor dengan nomor risalah resmi PLN.
+- **Penugasan PIC Cerdas (Searchable Autocomplete):** Memilih PIC dari 154 pegawai PLN cukup dengan mengetikkan kata kunci nama, NID, atau jabatan tanpa scroll panjang.
 - **Role-Based Access Control (RBAC):** Hak akses berjenjang untuk MUP, ASMAN, TL, dan Staf.
 
 ---
 
-## 💻 Kebutuhan Server (Server Requirements)
+## 💻 Spesifikasi & Kebutuhan Server Oracle
 
-Sebelum melakukan instalasi di hosting atau server, pastikan server memenuhi spesifikasi berikut:
+Aplikasi ini dirancang untuk berjalan optimal dengan database korporat **Oracle Database**:
 
+- **Database:** Oracle Database `19c`, `21c`, atau `23c Free / XE` (Service Name / Pluggable Database, port `1521`).
 - **PHP:** Versi `>= 8.2`
 - **Ekstensi PHP Wajib:**
-  - `BCMath`
-  - `Ctype`
-  - `cURL`
-  - `DOM` / `XML`
-  - `Fileinfo`
-  - `Filter`
-  - `JSON`
-  - `Mbstring`
-  - `OpenSSL`
-  - `PCRE`
-  - `PDO` & driver database (`pdo_mysql` untuk MySQL / MariaDB, atau `pdo_sqlite`)
-  - `Session`
-  - `Tokenizer`
-- **Database:** MySQL `>= 8.0` / MariaDB `>= 10.4` / SQLite 3
-- **Composer:** Versi `>= 2.2`
-- **Node.js & NPM:** Node.js `>= 18.x` & NPM `>= 9.x` (digunakan saat build frontend)
-- **Web Server:** Apache (dengan `mod_rewrite` aktif) atau Nginx
+  - `oci8` (PHP OCI8 extension untuk koneksi ke Oracle Database)
+  - `pdo_oci` (opsional untuk PDO Oracle)
+  - `BCMath`, `Ctype`, `cURL`, `DOM`, `Fileinfo`, `Filter`, `JSON`, `Mbstring`, `OpenSSL`, `PCRE`, `Session`, `Tokenizer`
+- **Pustaka Client:** Oracle Instant Client versi `>= 19.x` atau `21.x` (`instantclient-basic` & `instantclient-sdk`)
+- **Composer:** Versi `>= 2.2` (dengan package `yajra/laravel-oci8: ^12.11`)
+- **Node.js & NPM:** Node.js `>= 18.x` & NPM `>= 9.x` (untuk build frontend Vite & Tailwind)
+- **Web Server:** Nginx atau Apache (dengan `mod_rewrite` aktif)
 
 ---
 
-## 🌐 Panduan Pemasangan di Hosting
+## 🌐 Panduan Pemasangan & Deployment Server
 
-Pilih salah satu metode deployment yang sesuai dengan jenis hosting yang Anda gunakan:
+### OPSI 1: VPS / Dedicated / On-Premise Server PLN (Rekomendasi Resmi)
+*(Berlaku untuk Ubuntu 22.04 / 24.04 LTS atau RHEL / Oracle Linux)*
 
----
+Metode ini adalah standar resmi untuk aplikasi internal PLN yang terhubung ke server database Oracle.
 
-### OPSI 1: Shared Hosting / cPanel
-
-Shared hosting cPanel adalah pilihan paling umum. Ada **dua metode penataan struktur folder**:
-
-#### METODE A (Sangat Direkomendasikan - Standar Keamanan Laravel)
-Memisahkan kode sistem di luar `public_html` agar file konfigurasi (`.env`), kode sumber, dan storage terlindungi dari akses publik.
-
-##### Langkah 1: Build Aset Frontend di Komputer Lokal
-Di komputer lokal Anda, jalankan perintah berikut untuk meng-compile file Vue & Tailwind ke dalam folder `public/build`:
-```bash
-npm install
-npm run build
-```
-Pastikan folder `public/build/` sudah terbuat dan berisi aset css & js.
-
-##### Langkah 2: Persiapkan File ZIP Proyek
-Kemas seluruh file proyek ke dalam format `.zip`, **KECUALI**:
-- Folder `node_modules/`
-- Folder `.git/`
-*(Folder `vendor/` boleh disertakan jika hosting Anda tidak memiliki fitur SSH / Terminal cPanel).*
-
-##### Langkah 3: Upload ke cPanel
-1. Login ke **cPanel**.
-2. Buka menu **File Manager**.
-3. Masuk ke direktori root akun hosting Anda (satu level di atas `public_html`, biasanya `/home/username/`).
-4. Buat folder baru, misalnya bernama `plnsengkang`.
-5. Upload file `.zip` tadi ke dalam folder `/home/username/plnsengkang/` lalu lakukan **Extract**.
-6. Pindahkan seluruh isi dari folder `/home/username/plnsengkang/public/` ke dalam folder `/home/username/public_html/`.
-
-##### Langkah 4: Sesuaikan File `index.php` di `public_html`
-Buka file `/home/username/public_html/index.php` dengan Code Editor cPanel, lalu ubah baris path berikut agar mengarah ke folder `plnsengkang`:
-
-```php
-// Cari baris berikut:
-if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
-    require $maintenance;
-}
-
-require __DIR__.'/../vendor/autoload.php';
-
-$app = require_once __DIR__.'/../bootstrap/app.php';
-```
-
-Ubah menjadi:
-```php
-if (file_exists($maintenance = __DIR__.'/../plnsengkang/storage/framework/maintenance.php')) {
-    require $maintenance;
-}
-
-require __DIR__.'/../plnsengkang/vendor/autoload.php';
-
-$app = require_once __DIR__.'/../plnsengkang/bootstrap/app.php';
-```
-> **Catatan:** Jika Anda mengarahkan domain/subdomain ke folder khusus selain `public_html` (misal `public_html/rapat/`), sesuaikan path relatif `../plnsengkang` sesuai posisi foldernya.
-
-##### Langkah 5: Buat Database di cPanel
-1. Di cPanel, buka menu **MySQL® Database Wizard**.
-2. Buat database baru (misal: `username_plnsengkang`).
-3. Buat user database baru dan buat password yang kuat.
-4. Berikan hak akses penuh (**ALL PRIVILEGES**) pada user terhadap database tersebut.
-
-##### Langkah 6: Konfigurasi File `.env`
-1. Buka folder `/home/username/plnsengkang/`.
-2. Jika file `.env` belum ada, rename atau salin file `.env.example` menjadi `.env`.
-3. Edit file `.env` dan sesuaikan nilainya:
-```env
-APP_NAME="PLN UP Sengkang"
-APP_ENV=production
-APP_KEY=base64:... (akan digenerate atau gunakan key lokal)
-APP_DEBUG=false
-APP_URL=https://domainanda.com
-
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=username_plnsengkang
-DB_USERNAME=username_plnuser
-DB_PASSWORD=password_database_anda
-
-SESSION_DRIVER=database
-QUEUE_CONNECTION=database
-CACHE_STORE=database
-FILESYSTEM_DISK=public
-```
-
-##### Langkah 7: Generate Key, Migrasi, & Seeding Database
-**Jika Hosting Memiliki Akses Terminal / SSH cPanel:**
-Buka menu **Terminal** di cPanel, lalu ketik perintah berikut:
-```bash
-cd /home/username/plnsengkang
-php artisan key:generate
-php artisan migrate --seed --force
-php artisan storage:link
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-```
-
-**Jika Hosting TIDAK Memiliki Terminal / SSH:**
-1. Ekspor database lokal Anda via phpMyAdmin lokal ke file `.sql`.
-2. Buka menu **phpMyAdmin** di cPanel hosting, pilih database yang telah dibuat, lalu lakukan **Import** file `.sql` tersebut.
-3. Untuk membuat symlink storage tanpa terminal, buat file baru bernama `symlink.php` di dalam `public_html/` dengan isi:
-```php
-<?php
-$targetFolder = $_SERVER['DOCUMENT_ROOT'] . '/../plnsengkang/storage/app/public';
-$linkFolder = $_SERVER['DOCUMENT_ROOT'] . '/storage';
-if (symlink($targetFolder, $linkFolder)) {
-    echo 'Symlink berhasil dibuat!';
-} else {
-    echo 'Gagal membuat symlink.';
-}
-```
-Akses file tersebut sekali melalui browser (`https://domainanda.com/symlink.php`), lalu **segera hapus file `symlink.php` tersebut demi keamanan**.
-
-##### Langkah 8: Atur Izin Akses Folder (Permissions)
-Pastikan folder berikut memiliki permission write (`775` atau `755`):
-- `/home/username/plnsengkang/storage/`
-- `/home/username/plnsengkang/bootstrap/cache/`
-
----
-
-#### METODE B (Jika Domain / Subdomain Bisa Diatur Document Root-nya)
-Jika paket hosting Anda mengizinkan pengaturan Document Root pada Addon Domain / Subdomain:
-1. Upload seluruh file proyek ke folder `/home/username/plnsengkang/`.
-2. Di cPanel menu **Domains** / **Subdomains**, atur **Document Root** langsung mengarah ke:
-   ```text
-   /home/username/plnsengkang/public
-   ```
-3. Langkah konfigurasi database, `.env`, migrasi, dan `storage:link` sama seperti Langkah 5, 6, dan 7 di atas.
-
----
-
-### OPSI 2: VPS (Virtual Private Server)
-*(Ubuntu 22.04 / 24.04 LTS dengan Nginx & PHP 8.2+)*
-
-#### 1. Persiapan Server & Paket Pendukung
-Update server dan install PHP 8.2 beserta modul yang dibutuhkan:
+#### Langkah 1: Install Paket Pendukung & PHP 8.2+
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y nginx mysql-server git curl unzip
-sudo apt install -y php8.2 php8.2-fpm php8.2-mysql php8.2-mbstring php8.2-xml \
-    php8.2-bcmath php8.2-curl php8.2-zip php8.2-gd php8.2-intl php8.2-sqlite3
+sudo apt install -y nginx git curl unzip libaio1 build-essential php8.2 php8.2-fpm \
+    php8.2-dev php-pear php8.2-mbstring php8.2-xml php8.2-bcmath php8.2-curl \
+    php8.2-zip php8.2-gd php8.2-intl
 ```
 
-Install Composer dan Node.js:
-```bash
-# Install Composer
-curl -sS https://getcomposer.org/installer | php
-sudo mv composer.phar /usr/local/bin/composer
+#### Langkah 2: Pasang Oracle Instant Client & Ekstensi OCI8
+1. Unduh **Oracle Instant Client Basic** dan **SDK** (versi Linux x86-64):
+   ```bash
+   sudo mkdir -p /opt/oracle
+   cd /opt/oracle
+   # Contoh versi 21.x (bisa juga versi 19.x)
+   sudo wget https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-basic-linux.x64-21.13.0.0.0dbru.zip
+   sudo wget https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-sdk-linux.x64-21.13.0.0.0dbru.zip
+   sudo unzip instantclient-basic-linux.x64-21.13.0.0.0dbru.zip
+   sudo unzip instantclient-sdk-linux.x64-21.13.0.0.0dbru.zip
+   ```
 
-# Install Node.js 20 LTS
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-```
+2. Konfigurasi path pustaka Oracle di sistem:
+   ```bash
+   echo /opt/oracle/instantclient_21_13 | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
+   sudo ldconfig
+   ```
 
-#### 2. Clone Repositori Proyek
+3. Kompilasi dan aktifkan ekstensi PHP `oci8`:
+   ```bash
+   # Jalankan instalasi OCI8 via PECL
+   sudo pecl install oci8
+   # Ketika ditanya path instantclient, masukkan:
+   # instantclient,/opt/oracle/instantclient_21_13
+   ```
+
+4. Daftarkan ekstensi `oci8.so` ke PHP:
+   ```bash
+   echo "extension=oci8.so" | sudo tee /etc/php/8.2/mods-available/oci8.ini
+   sudo ln -s /etc/php/8.2/mods-available/oci8.ini /etc/php/8.2/fpm/conf.d/20-oci8.ini
+   sudo ln -s /etc/php/8.2/mods-available/oci8.ini /etc/php/8.2/cli/conf.d/20-oci8.ini
+   sudo systemctl restart php8.2-fpm
+   ```
+
+5. Verifikasi bahwa OCI8 telah aktif:
+   ```bash
+   php -m | grep oci8
+   # Output harus menampilkan: oci8
+   ```
+
+#### Langkah 3: Clone Repositori & Install Dependensi
 ```bash
 cd /var/www
 sudo git clone https://github.com/HamXD19/pln-sengkang-demo.git plnsengkang
 cd plnsengkang
-```
 
-#### 3. Install Dependensi & Build Aset
-```bash
-# Install paket PHP untuk production
+# Install dependensi PHP (termasuk yajra/laravel-oci8)
 composer install --no-dev --optimize-autoloader
 
 # Install dependensi frontend dan build aset Vite
@@ -241,14 +127,40 @@ npm install
 npm run build
 ```
 
-#### 4. Konfigurasi Lingkungan (`.env`)
+#### Langkah 4: Konfigurasi File Lingkungan (`.env`)
+Salin file konfigurasi:
 ```bash
 cp .env.example .env
 nano .env
 ```
-Sesuaikan konfigurasi database, `APP_ENV=production`, `APP_DEBUG=false`, dan `APP_URL`.
+Sesuaikan konfigurasi koneksi **Oracle Database**:
+```env
+APP_NAME="PLN UP Sengkang"
+APP_ENV=production
+APP_KEY=base64:...
+APP_DEBUG=false
+APP_URL=https://plnsengkang.yourdomain.com
 
-Lalu jalankan inisialisasi aplikasi:
+# KONEKSI RESMI ORACLE DATABASE
+DB_CONNECTION=oracle
+DB_HOST=127.0.0.1                  # Atau IP server Oracle (misal: 10.x.x.x)
+DB_PORT=1521                       # Port standar Oracle Listener
+DB_DATABASE=freepdb1               # Nama database / Pluggable Database
+DB_SERVICE_NAME=freepdb1           # Service Name Oracle (misal: freepdb1 atau orclpdb)
+DB_TNS=127.0.0.1:1521/freepdb1     # String TNS koneksi
+DB_USERNAME=irham                  # Schema / User Oracle
+DB_PASSWORD=Irham123               # Password User Oracle
+DB_CHARSET=AL32UTF8
+DB_SERVER_VERSION=23c              # 19c / 21c / 23c
+
+SESSION_DRIVER=database
+QUEUE_CONNECTION=database
+CACHE_STORE=database
+FILESYSTEM_DISK=public
+```
+
+#### Langkah 5: Eksekusi Migrasi Oracle & Seeder Data
+Jalankan migrasi Laravel DDL khusus Oracle (Yajra OCI8 akan otomatis membuat tabel, sequence, dan trigger Oracle):
 ```bash
 php artisan key:generate
 php artisan migrate --seed --force
@@ -256,23 +168,23 @@ php artisan storage:link
 php artisan optimize
 ```
 
-#### 5. Pengaturan Hak Akses & Permission
+#### Langkah 6: Atur Izin Folder (Permissions)
 ```bash
 sudo chown -R www-data:www-data /var/www/plnsengkang
 sudo chmod -R 775 /var/www/plnsengkang/storage
 sudo chmod -R 775 /var/www/plnsengkang/bootstrap/cache
 ```
 
-#### 6. Konfigurasi Nginx Server Block
+#### Langkah 7: Konfigurasi Nginx Server Block
 Buat file konfigurasi Nginx:
 ```bash
 sudo nano /etc/nginx/sites-available/plnsengkang
 ```
-Isi dengan konfigurasi berikut:
+Isi konfigurasi berikut:
 ```nginx
 server {
     listen 80;
-    server_name plnsengkang.yourdomain.com; # Ganti dengan domain atau IP server Anda
+    server_name plnsengkang.yourdomain.com;
     root /var/www/plnsengkang/public;
 
     add_header X-Frame-Options "SAMEORIGIN";
@@ -302,74 +214,94 @@ server {
     }
 }
 ```
-Aktifkan konfigurasi dan reload Nginx:
+Aktifkan dan restart Nginx:
 ```bash
 sudo ln -s /etc/nginx/sites-available/plnsengkang /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-#### 7. Pasang SSL Gratis (Let's Encrypt Certbot)
+---
+
+### OPSI 2: Docker Container (Oracle 23c Free)
+
+Jika server Anda menggunakan lingkungan Docker, Anda dapat menjalankan Oracle Database 23c Free secara instan:
+
 ```bash
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d plnsengkang.yourdomain.com
+# 1. Jalankan container Oracle Database 23c Free resmi
+docker run -d \
+  --name oracle23c \
+  -p 1521:1521 \
+  -e ORACLE_PWD=Irham123 \
+  container-registry.oracle.com/database/free:latest
+
+# 2. Tunggu hingga status database "healthy"
+docker logs -f oracle23c
+
+# 3. Pada file .env aplikasi, atur:
+# DB_CONNECTION=oracle
+# DB_HOST=127.0.0.1
+# DB_PORT=1521
+# DB_SERVICE_NAME=freepdb1
+# DB_USERNAME=system (atau buat user baru)
+# DB_PASSWORD=Irham123
 ```
 
-#### 8. Setup Background Worker & Scheduler (Opsional)
-Jalankan cron job Laravel Scheduler:
+Lalu jalankan migrasi database:
 ```bash
-sudo crontab -e -u www-data
-```
-Tambahkan baris berikut di baris paling bawah:
-```text
-* * * * * cd /var/www/plnsengkang && php artisan schedule:run >> /dev/null 2>&1
+php artisan migrate --seed
 ```
 
 ---
 
-### OPSI 3: Serverless / Cloud (Vercel)
+### OPSI 3: Shared Hosting / cPanel (Koneksi Oracle Remote)
 
-Proyek ini sudah dilengkapi dengan file konfigurasi [`vercel.json`](vercel.json) dan runtime bridge di [`api/index.php`](api/index.php).
-
-1. Buat akun di [Vercel](https://vercel.com) dan hubungkan dengan repository GitHub ini.
-2. Tambahkan **Environment Variables** di dashboard project Vercel:
-   - `APP_ENV`: `production`
-   - `APP_DEBUG`: `false`
-   - `APP_KEY`: *Hasil generate dari lokal*
-   - `DB_CONNECTION`: `mysql` (hubungkan ke managed database seperti PlanetScale, Aiven, Supabase, atau Neon)
-   - Konfigurasi `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
-3. Klik **Deploy**. Vercel akan otomatis mengeksekusi build script dan mendeploy aplikasi.
+> ⚠️ **Catatan Penting Mengenai Shared Hosting:**
+> Sebagian besar penyedia shared hosting cPanel murah **tidak menyediakan** modul Oracle Instant Client / OCI8 secara bawaan. 
+> Jika Anda harus menggunakan cPanel:
+> 1. Pastikan paket cPanel Anda adalah **Cloud / Dedicated cPanel** yang memiliki akses root atau modul `ea-php82-php-oci8` yang sudah diaktifkan oleh administrator hosting.
+> 2. Database Oracle dapat ditempatkan di server Oracle PLN terpisah (Remote Database), lalu cPanel bertindak sebagai Web Server PHP yang terhubung via IP & port `1521`.
+> 3. Konfigurasi Document Root cPanel wajib diarahkan ke folder `public/`.
 
 ---
 
-## 💻 Instalasi di Lingkungan Lokal (Localhost Development)
+## 💻 Instalasi di Komputer Lokal (Localhost Development)
 
-Jika Anda ingin menjalankan aplikasi di komputer lokal untuk kebutuhan pengembangan:
+Untuk menjalankan proyek di lingkungan pengembangan lokal yang terhubung ke Oracle Database:
 
 ```bash
 # 1. Clone repository
 git clone https://github.com/HamXD19/pln-sengkang-demo.git
 cd pln-sengkang-demo
 
-# 2. Install dependensi PHP
+# 2. Install dependensi PHP (termasuk yajra/laravel-oci8)
 composer install
 
-# 3. Salin file environment
+# 3. Salin file environment Oracle
 cp .env.example .env
 
 # 4. Generate App Key
 php artisan key:generate
 
-# 5. Jalankan migrasi dan seeder database awal
+# 5. Pastikan koneksi Oracle di .env sudah sesuai:
+# DB_CONNECTION=oracle
+# DB_HOST=127.0.0.1
+# DB_PORT=1521
+# DB_SERVICE_NAME=freepdb1
+# DB_USERNAME=irham
+# DB_PASSWORD=Irham123
+
+# 6. Jalankan migrasi dan seeder awal di Oracle
 php artisan migrate --seed
 
-# 6. Hubungkan storage
+# 7. Hubungkan folder storage publik
 php artisan storage:link
 
-# 7. Install paket frontend Node.js
+# 8. Install dependensi frontend & build
 npm install
+npm run build
 
-# 8. Jalankan server lokal (otomatis menjalankan server PHP, Vite, Queue, dan Logs)
+# 9. Jalankan server lokal
 composer run dev
 ```
 Akses aplikasi melalui browser di: `http://127.0.0.1:8000`
@@ -395,28 +327,42 @@ Setelah menjalankan migrasi dengan opsi `--seed`, sistem telah menyediakan akun 
 
 ---
 
-## 🛠️ Pemecahan Masalah (Troubleshooting)
+## 🛠️ Pemecahan Masalah Khusus Oracle (Troubleshooting)
 
-### 1. Muncul Error "500 Server Error" setelah Upload ke cPanel
-- **Penyebab:** Versi PHP di cPanel masih di bawah 8.2 atau ekstensi PHP belum aktif.
-- **Solusi:** Buka menu **Select PHP Version** di cPanel, ubah ke PHP **8.2** atau **8.3**, lalu pastikan ekstensi `pdo_mysql`, `mbstring`, `fileinfo`, `bcmath`, dan `xml` sudah dicentang.
-- Periksa log detail di file `storage/logs/laravel.log`.
+### 1. Error `Call to undefined function oci_connect()` atau `Driver [oracle] not supported`
+- **Penyebab:** Ekstensi PHP OCI8 belum terpasang atau belum diaktifkan di file `php.ini`.
+- **Solusi:** 
+  1. Pastikan Oracle Instant Client sudah diekstrak ke `/opt/oracle/instantclient_...` dan terdaftar di `ldconfig`.
+  2. Install modul OCI8 dengan `sudo pecl install oci8`.
+  3. Pastikan baris `extension=oci8.so` ada di konfigurasi PHP CLI dan PHP-FPM, lalu restart PHP (`sudo systemctl restart php8.2-fpm`).
 
-### 2. Tampilan Berantakan / CSS dan JS Tidak Termuat (Vite Manifest Not Found)
-- **Penyebab:** Folder `public/build` belum ter-compile atau belum ter-upload ke hosting.
-- **Solusi:** Jalankan `npm run build` di lokal, kemudian pastikan folder `public/build` di-upload ke direktori `public_html/build` (atau `public/build`).
+### 2. Error `ORA-12541: TNS:no listener`
+- **Penyebab:** Oracle Database Listener belum berjalan di server database atau port `1521` diblokir firewall.
+- **Solusi:**
+  1. Periksa status listener di server Oracle: `lsnrctl status`.
+  2. Jika mati, jalankan dengan: `lsnrctl start`.
+  3. Pastikan port `1521` dibuka pada firewall server (`sudo ufw allow 1521/tcp`).
 
-### 3. Gambar / File Lampiran Tidak Muncul (Error 404 pada `/storage/...`)
-- **Penyebab:** Symlink storage belum terbuat atau path symlink salah.
-- **Solusi:** Jalankan `php artisan storage:link` via Terminal cPanel / SSH. Jika hosting tidak ada Terminal, gunakan skrip `symlink.php` yang dijelaskan pada [Langkah 7 Opsi 1](#langkah-7-generate-key-migrasi--seeding-database).
+### 3. Error `ORA-12514: TNS:listener does not currently know of service requested`
+- **Penyebab:** Nilai `DB_SERVICE_NAME` di file `.env` tidak cocok dengan service name aktif di Oracle.
+- **Solusi:**
+  1. Periksa service name yang terdaftar pada listener dengan perintah `lsnrctl status`.
+  2. Pada Oracle 23c Free, service default umumnya adalah `freepdb1` (huruf kecil). Pada Oracle 19c/21c biasanya `orclpdb` atau `orcl`.
+  3. Sesuaikan `DB_SERVICE_NAME=freepdb1` dan `DB_DATABASE=freepdb1` di `.env`.
 
-### 4. Tombol atau Form Mengalami Error "CSRF Token Mismatch" (Error 419)
-- **Penyebab:** Konfigurasi session atau cookie domain di `.env` belum sesuai dengan domain aktif.
-- **Solusi:** Pastikan `APP_URL` di file `.env` sudah menggunakan domain yang benar dengan protokol `https://` (jika menggunakan SSL). Jalankan `php artisan config:clear`.
+### 4. Error `ORA-01017: invalid username/password; logon denied`
+- **Penyebab:** Username atau password Oracle salah, atau user belum diberikan hak akses (grant).
+- **Solusi:**
+  1. Pastikan kredensial di `.env` sudah benar.
+  2. Jika membuat user baru di Oracle, pastikan sudah diberi wewenang:
+     ```sql
+     GRANT CONNECT, RESOURCE, DBA TO irham;
+     ALTER USER irham QUOTA UNLIMITED ON USERS;
+     ```
 
-### 5. Permission Denied pada Folder `storage` atau `bootstrap/cache`
-- **Penyebab:** Web server tidak memiliki hak tulis (write permission) ke folder cache.
-- **Solusi:** Ubah permission folder `storage/` dan `bootstrap/cache/` beserta sub-foldernya menjadi `775` (atau `755` tergantung konfigurasi user server hosting Anda).
+### 5. Gambar / File Lampiran Tidak Muncul (Error 404 pada `/storage/...`)
+- **Penyebab:** Symlink storage belum terbuat.
+- **Solusi:** Jalankan `php artisan storage:link`.
 
 ---
 
