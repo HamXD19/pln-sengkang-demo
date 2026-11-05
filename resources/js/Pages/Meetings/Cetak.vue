@@ -59,8 +59,12 @@
       <div class="border-b-2 border-gray-900 pb-4 mb-6">
         <div class="flex justify-between items-start">
           <div class="flex items-center gap-3.5">
-            <div class="w-12 h-12 bg-blue-700 text-white font-black text-xl rounded-lg flex items-center justify-center shadow-xs">
-              PLN
+            <div class="h-14 w-14 shrink-0 flex items-center justify-center">
+              <img 
+                :src="$page.props.branding?.logo_url || '/assets/bumn/logo-pln.png'" 
+                alt="Logo PT PLN Nusantara Power" 
+                class="max-h-14 max-w-14 object-contain"
+              />
             </div>
             <div>
               <h1 class="text-base font-extrabold tracking-tight text-gray-900 uppercase">PT PLN NUSANTARA POWER</h1>

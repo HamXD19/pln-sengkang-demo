@@ -2,8 +2,44 @@
   <AppLayout title="Laporan Kinerja & Koordinasi Berjenjang">
     <div class="space-y-6">
 
-      <!-- Header Filter & Export Bar -->
-      <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <!-- KOP SURAT RESMI CETAK LAPORAN (HANYA MUNCUL SAAT CETAK / PRINT) -->
+      <div class="hidden print:block border-b-2 border-gray-900 pb-4 mb-6">
+        <div class="flex justify-between items-start">
+          <div class="flex items-center gap-3.5">
+            <div class="h-16 w-16 shrink-0 flex items-center justify-center">
+              <img 
+                :src="$page.props.branding?.logo_url || '/assets/bumn/logo-pln.png'" 
+                alt="Logo PT PLN Nusantara Power" 
+                class="max-h-16 max-w-16 object-contain"
+              />
+            </div>
+            <div>
+              <h1 class="text-base font-extrabold tracking-tight text-gray-900 uppercase">PT PLN NUSANTARA POWER</h1>
+              <p class="text-[11px] font-bold text-gray-700 uppercase">UNIT PELAKSANA PENGENDALIAN PEMBANGKITAN SENGKANG</p>
+              <p class="text-[10px] text-gray-500">Jl. Poros Sengkang - Siwa Km. 20, Kabupaten Wajo, Sulawesi Selatan 90911</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-[9px] font-mono text-gray-400 block uppercase tracking-wider">Laporan Resmi Terintegrasi</span>
+            <span class="text-xs font-mono font-bold text-gray-900 bg-slate-50 px-2.5 py-1 rounded border border-gray-200 inline-block mt-0.5">
+              LAP-SKG/{{ new Date().getFullYear() }}/{{ (selectedPeriode || 'BULAN_INI').toUpperCase() }}
+            </span>
+            <span class="text-[9px] text-emerald-700 font-semibold block mt-1">Status: Terverifikasi Sistem</span>
+          </div>
+        </div>
+
+        <div class="text-center mt-5">
+          <h2 class="text-sm font-extrabold uppercase underline tracking-wider text-gray-900">
+            LAPORAN KINERJA KOORDINASI, KEPUTUSAN & REALISASI TASK
+          </h2>
+          <p class="text-xs font-bold text-blue-700 mt-1 uppercase">
+            Periode: {{ formatPeriodeLabel(selectedPeriode) }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Header Filter & Export Bar (Sembunyi saat Cetak) -->
+      <div class="no-print print:hidden bg-white rounded-xl border border-gray-100 p-6 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
             <i class="fas fa-chart-line text-blue-600"></i> Laporan Berkala Koordinasi & Eskalasi UP Sengkang
@@ -277,6 +313,42 @@
         </div>
       </div>
 
+      <!-- LEMBAR PENGESAHAN LAPORAN (HANYA MUNCUL SAAT CETAK / PRINT) -->
+      <div class="hidden print:block mt-8 pt-6 border-t-2 border-gray-300">
+        <div class="flex justify-between items-end text-xs">
+          <!-- Digital Audit Box -->
+          <div class="flex items-center gap-3 bg-slate-50 border border-gray-200 p-3 rounded-lg max-w-sm">
+            <div class="w-14 h-14 bg-white p-1 border border-gray-300 rounded shrink-0 flex items-center justify-center">
+              <img 
+                :src="$page.props.branding?.logo_url || '/assets/bumn/logo-pln.png'" 
+                alt="Logo PLN" 
+                class="max-h-12 max-w-12 object-contain"
+              />
+            </div>
+            <div>
+              <span class="text-[9px] font-mono text-gray-500 uppercase block">Digital Document Verification</span>
+              <p class="text-[10px] text-gray-600 leading-tight mt-0.5">
+                Laporan kinerja terverifikasi resmi secara digital pada sistem koordinasi <b>PT PLN Nusantara Power UP Sengkang</b>.
+              </p>
+            </div>
+          </div>
+
+          <!-- Tanda Tangan Pejabat Pengesah -->
+          <div class="text-center w-64">
+            <p class="font-bold text-gray-700 mb-14">
+              Sengkang, {{ new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) }}<br>
+              <span class="font-normal text-gray-500">Manajer Unit Pelaksana (MUP),</span>
+            </p>
+            <p class="font-bold text-gray-900 underline uppercase tracking-wide">
+              Manajer Unit Pelaksana
+            </p>
+            <p class="text-gray-500 text-[10px] font-mono">
+              PT PLN Nusantara Power UP Sengkang
+            </p>
+          </div>
+        </div>
+      </div>
+
     </div>
   </AppLayout>
 </template>
@@ -318,6 +390,13 @@ function printReport() {
   window.print();
 }
 
+function formatPeriodeLabel(p) {
+  if (p === 'minggu_ini') return 'Minggu Berjalan (Minggu Ini)';
+  if (p === 'minggu_lalu') return 'Minggu Lalu (Siklus Evaluasi N-1)';
+  if (p === 'semua') return 'Seluruh Periode Operasional';
+  return 'Bulan Ini (' + new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) + ')';
+}
+
 function formatDateOnly(dStr) {
   if (!dStr) return '-';
   const d = new Date(dStr);
@@ -339,3 +418,24 @@ function statusBadgeClass(s) {
   return 'px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200';
 }
 </script>
+
+<style>
+@media print {
+  .no-print,
+  aside,
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+  body, html {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: #111827 !important;
+  }
+  .print\:block {
+    display: block !important;
+  }
+}
+</style>
